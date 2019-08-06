@@ -9,7 +9,8 @@ import discord
 from sqlalchemy import func
 from web import db, app
 
-from services import SheetService
+from services import SheetService, StockService
+from models.data_models import Stock
 
 ROOT = os.path.dirname(__file__)
 logger = logging.getLogger('discord')
@@ -116,18 +117,10 @@ class DiscordCommand:
     async def process(self):
         """Process the command"""
         try:
-            if(self.args[0])=="!stock":
-                if len(self.args) < 2:
-                    await self.short_reply("Provide partial or full stock name")
-                else:
-                    stocks = [stock for stock in SheetService.stocks() if self.args[1] in stock['Team'].lower()]
-                    msg = []
-                    for stock in stocks:
-                        msg.append(
-                            f"{stock['Team']}: {stock['Current Value']}"
-                        )
-                    await self.reply(msg)
-
+            if self.cmd.startswith('!stock'):
+                await self.__run_stock()
+            elif self.cmd.startswith('!admin'):
+                await self.__run_admin()
         except Exception as e:
             await self.transaction_error(e)
             #raising will not kill the discord bot but will cause it to log this to log as well
@@ -155,6 +148,37 @@ class DiscordCommand:
         await self.send_message(self.message.channel, [text])
         logger.error(text)
         logger.error(traceback.format_exc())
+
+    async def __run_admin(self):
+        # if not started from admin-channel
+        if not self.__class__.is_admin_channel(self.message.channel):
+            await self.reply([f"Insuficient rights"])
+            return
+
+        if self.args[0] == "!adminstock":
+            if len(self.args) != 2:
+                await self.reply([f"Wrong number of parameters"])
+                return
+            if self.args[1] not in ["update"]:
+                await self.reply([f"Wrong parameter - only update allowed"])
+                return
+            await self.short_reply("Updating...")
+            StockService.update()
+            await self.short_reply("Done")
+                
+
+    async def __run_stock(self):
+        if(self.args[0])=="!stock":
+            if len(self.args) < 2:
+                await self.short_reply("Provide partial or full stock name")
+            else:
+                stocks = Stock.find_all_by_name(" ".join(self.args[1:]))
+                msg = []
+                for stock in stocks:
+                    msg.append(
+                        f"{stock.name}: {stock.unit_price}"
+                    )
+                await self.reply(msg)
 
 with open(os.path.join(ROOT, 'config/TOKEN'), 'r') as token_file:
     TOKEN = token_file.read()

@@ -16,14 +16,14 @@ class SheetService:
     SPREADSHEET_ID = "1asnfGr4M1ec2IW46nv4md5glT2-Eq0j60iOuYsVsVeE"
     # dev spreadsheet below
     #SPREADSHEET_ID = "1asnfGr4M1ec2IW46nv4md5glT2-Eq0j60iOuYsVsVeE"
-    MAIN_SHEET="REL"
+    MAIN_SHEET="Current Team Values"
 
     _stocks = None
 
     @classmethod
-    def stocks(cls):
+    def stocks(cls, refresh=False):
         """Returns torunaments from the sheet"""
-        if not cls._stocks:
+        if not cls._stocks or refresh:
             client = gspread.authorize(CREDS)
             sheet = client.open_by_key(cls.SPREADSHEET_ID).worksheet(cls.MAIN_SHEET)
             cls._stocks = sheet.get_all_records()
