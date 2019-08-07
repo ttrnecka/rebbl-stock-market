@@ -6,11 +6,13 @@ import traceback
 import re
 
 import discord
-from sqlalchemy import func
+from sqlalchemy import func, asc
+from sqlalchemy.orm.exc import MultipleResultsFound
 from web import db, app
 
-from services import SheetService, StockService
-from models.data_models import Stock
+from services import SheetService, StockService, UserService, OrderService, OrderError
+from models.data_models import Stock, User, Order, Share
+from misc.helpers import represents_int
 
 ROOT = os.path.dirname(__file__)
 logger = logging.getLogger('discord')
@@ -39,7 +41,7 @@ async def on_message(message):
     #ignore DM
     if isinstance(message.channel, discord.abc.PrivateChannel):
         await message.channel.send(
-            "PM commands are not allowed. Please use the Imperium discord server."
+            "PM commands are not allowed. Please use the discord server."
         )
         return
 
@@ -121,10 +123,68 @@ class DiscordCommand:
                 await self.__run_stock()
             elif self.cmd.startswith('!admin'):
                 await self.__run_admin()
+            elif self.cmd.startswith('!newuser'):
+                await self.__run_newuser()
+            elif self.cmd.startswith('!list'):
+                await self.__run_list()
+            elif self.cmd.startswith('!buy'):
+                await self.__run_buy()
+            elif self.cmd.startswith('!sell'):
+                await self.__run_sell()
+            elif self.cmd.startswith('!cancel'):
+                await self.__run_cancel()
         except Exception as e:
             await self.transaction_error(e)
             #raising will not kill the discord bot but will cause it to log this to log as well
             raise
+
+    @classmethod
+    def buy_help(cls):
+        """help message"""
+        msg = "```"
+        msg += "Creates order to BUY Stock\n"
+        msg += "USAGE:\n"
+        msg += "!buy <stock_code> [credit]\n"
+        msg += "\t<stock_code>: code of stock from !stock\n"
+        msg += "\t[credit]: optional, if provided spend up to the amout for the stock, if ommited, buy as much as possible\n"
+        msg += "```"
+        return msg
+
+    @classmethod
+    def sell_help(cls):
+        """help message"""
+        msg = "```"
+        msg += "Creates order to SELL Stock\n"
+        msg += "USAGE:\n"
+        msg += "!sell <stock_code> [units]\n"
+        msg += "\t<stock_code>: code of stock from !stock or !list\n"
+        msg += "\t[units]: optional, if provided sell up to [units] of stock, if omitted, sell all units of that stock\n"
+        msg += "```"
+        return msg
+
+    @classmethod
+    def cancel_help(cls):
+        """help message"""
+        msg = "```"
+        msg += "Cancels outstanding order\n"
+        msg += "USAGE:\n"
+        msg += "!cancel <id>\n"
+        msg += "\t<id>: id of the order from the !list\n"
+        msg += "```"
+        return msg
+
+    # must me under 2000 chars
+    async def trade_notification(self, msg, user):
+        """Notifies coach about bank change"""
+        member = discord.utils.get(self.message.guild.members, id=user.disc_id)
+        if member is None:
+            mention = user.name
+        else:
+            mention = member.mention
+
+        channel = discord.utils.get(self.client.get_all_channels(), name='trade-notifications')
+        await self.send_message(channel, [f"{mention}: "+msg])
+        return
 
     async def send_message(self, channel, message_list):
         """Sends messages to channel"""
@@ -149,6 +209,63 @@ class DiscordCommand:
         logger.error(text)
         logger.error(traceback.format_exc())
 
+    def list_message(self,user):
+        msg = [
+            f"**User:** {user.short_name()}\n",
+            f"**Bank:** {user.account.amount} credits\n",
+            f"**Shares:**",
+        ]
+
+        total_value = 0
+        msg.append("```")
+        for share in user.shares:
+            msg.append(
+                '{:5s} - {:25s}: {:3d} x {:7.2f}'.format(share.stock.code, share.stock.name, share.units, share.stock.unit_price)
+            )
+            total_value += share.units * share.stock.unit_price
+    
+        msg.append("```") 
+        msg.append("")    
+        msg.append(f"**Total Shares Value:** {total_value}")
+
+        msg.append("")
+        msg.append(f"**Outstanding Orders:**")
+
+        for order in user.orders:
+            if not order.processed:
+                msg.append(f"{order.id}. {order.description}")
+        msg.append(" ")
+
+        return msg
+
+    # commands
+    async def __run_newuser(self):
+        if User.get_by_discord_id(self.message.author.id):
+            await self.reply([f"**{self.message.author.mention}** account exists already\n"])
+        else:
+            user = UserService.new_coach(self.message.author, self.message.author.id)
+            msg = [
+                f"**{self.message.author.mention}** account created\n",
+                f"**Bank:** {user.account.amount} credits",
+            ]
+            await self.reply(msg)
+
+    async def __run_list(self):
+
+        user = User.get_by_discord_id(self.message.author.id)
+        
+        if user is None:
+            await self.reply(
+                [(f"User {self.message.author.mention} does not exist."
+                "Use !newuser to create user first.")]
+            )
+            return
+
+        msg = self.list_message(user)
+
+        await self.send_message(self.message.author, msg)
+        await self.short_reply("Info sent to PM")
+
     async def __run_admin(self):
         # if not started from admin-channel
         if not self.__class__.is_admin_channel(self.message.channel):
@@ -160,12 +277,71 @@ class DiscordCommand:
                 await self.reply([f"Wrong number of parameters"])
                 return
             if self.args[1] not in ["update"]:
-                await self.reply([f"Wrong parameter - only update allowed"])
+                await self.reply([f"Wrong parameter - only *update* is allowed"])
                 return
             await self.short_reply("Updating...")
             StockService.update()
             await self.short_reply("Done")
-                
+
+        if self.args[0] == "!adminmarket":
+            if len(self.args) != 2:
+                await self.reply([f"Wrong number of parameters"])
+                return
+            if self.args[1] not in ["close","open","status"]:
+                await self.reply([f"Wrong parameter - only *status*, *open* and *close* are allowed"])
+                return
+            
+            if self.args[1] == "open":
+                OrderService.open()
+                msg = "Done"
+            if self.args[1] == "close":
+                OrderService.close()
+                msg = "Done"
+            if self.args[1] == "status":
+                if OrderService.is_open():
+                    msg = "Market is open"
+                else:
+                    msg = "Market is closed"
+
+            await self.short_reply(msg)
+
+        if self.args[0] == "!admintrade":
+            await self.short_reply("Updating DB...")
+            StockService.update()
+            await self.short_reply("Done")
+            await self.short_reply("Closing market...")
+            OrderService.close()
+            await self.short_reply("Done")
+
+            await self.short_reply("Processing orders:")
+            orders = Order.query.order_by(asc(Order.date_created)).filter(Order.processed == False).all()
+            for order in orders:
+                order = OrderService.process(order)
+                await self.trade_notification(order.result, order.user)
+            await self.short_reply("Done")
+            
+            await self.short_reply("Opening market...")
+            OrderService.open()
+            await self.short_reply("Done")
+
+        if self.args[0] == "!adminlist":
+            # require username argument
+            if len(self.args) == 1:
+                await self.reply(["Username missing"])
+                return
+
+            users = User.find_all_by_name(self.args[1])
+            msg = []
+
+            if not users:
+                msg.append("No coaches found")
+
+            for user in users:
+                for messg in self.list_message(user):
+                    msg.append(messg)
+
+            await self.reply(msg)
+            
 
     async def __run_stock(self):
         if(self.args[0])=="!stock":
@@ -173,12 +349,123 @@ class DiscordCommand:
                 await self.short_reply("Provide partial or full stock name")
             else:
                 stocks = Stock.find_all_by_name(" ".join(self.args[1:]))
-                msg = []
+                msg = ["```"]
+                msg.append(
+                    '{:5s} - {:25}: {:<10s}'.format("Code","Team Name","Unit Price")
+                )
+                msg.append(49*"-")
                 for stock in stocks:
                     msg.append(
-                        f"{stock.name}: {stock.unit_price}"
+                        '{:5s} - {:25}: {:7.2f}'.format(stock.code, stock.name, stock.unit_price)
                     )
+                msg.append("```")
                 await self.reply(msg)
+
+    async def __run_buy(self):
+        user = User.get_by_discord_id(self.message.author.id)
+        order_dict = {
+            'operation':"buy"
+        }
+
+        if user is None:
+            await self.reply(
+                [(f"User {self.message.author.mention} does not exist."
+                "Use !newuser to create user first.")]
+            )
+            return
+
+        if len(self.args) not in [2,3]:
+            await self.reply(["Incorrect number of arguments!!!", self.__class__.buy_help()])
+            return
+        try:
+            stock = Stock.find_by_code(self.args[1])
+        except MultipleResultsFound as exc:
+            await self.reply([f"Stock code **{self.args[1]}** is not unique!!!",])
+            return
+
+        if not stock:
+            await self.reply([f"Stock code **{self.args[1]}** not found!"])
+            return
+
+        if len(self.args) == 3:
+            if not represents_int(self.args[2]) or (represents_int(self.args[2]) and not int(self.args[2]) > 0):
+                await self.reply([f"**{self.args[2]}** must be whole positive number!"])
+                return
+            else:
+                order_dict['buy_funds'] = self.args[2]
+
+        
+        order = OrderService.create(user, stock, **order_dict)
+        await self.reply([f"Order placed succesfully."," ",f"**{order.description}**"])
+        return
+
+    async def __run_sell(self):
+        user = User.get_by_discord_id(self.message.author.id)
+        order_dict = {
+            'operation':"sell"
+        }
+
+        if user is None:
+            await self.reply(
+                [(f"User {self.message.author.mention} does not exist."
+                "Use !newuser to create user first.")]
+            )
+            return
+
+        if len(self.args) not in [2,3]:
+            await self.reply(["Incorrect number of arguments!!!", self.__class__.sell_help()])
+            return
+        try:
+            stock = Stock.find_by_code(self.args[1])
+        except MultipleResultsFound as exc:
+            await self.reply([f"Stock code **{self.args[1]}** is not unique!!!",])
+            return
+
+        if not stock:
+            await self.reply([f"Stock code **{self.args[1]}** not found!"])
+            return
+        
+        if len(self.args) == 3:
+            if not represents_int(self.args[2]) or (represents_int(self.args[2]) and not int(self.args[2]) > 0):
+                await self.reply([f"**{self.args[2]}** must be whole positive number!"])
+                return
+            else:
+                order_dict['sell_shares'] = int(self.args[2])
+        
+        share = Share.query.join(Share.user, Share.stock).filter(User.id == user.id, Stock.id == stock.id).one_or_none()
+        
+        if not share:
+            await self.reply([f"You do not own any shares of **{self.args[1]}** stock!"])
+            return
+
+        order = OrderService.create(user, stock, **order_dict)
+        await self.reply([f"Order placed succesfully."," ",f"**{order.description}**"])
+        return
+
+    async def __run_cancel(self):
+        user = User.get_by_discord_id(self.message.author.id)
+
+        if user is None:
+            await self.reply(
+                [(f"User {self.message.author.mention} does not exist."
+                "Use !newuser to create user first.")]
+            )
+            return
+
+        if len(self.args) not in [2]:
+            await self.reply(["Incorrect number of arguments!!!", self.__class__.cancel_help()])
+            return
+
+        if not represents_int(self.args[1]):
+            await self.reply([f"**{self.args[1]}** must be whole number!"])
+            return
+        
+        if OrderService.cancel(self.args[1], user):
+            await self.reply([f"Order ID {self.args[1]} has been cancelled"])
+            return
+        else:
+            await self.reply([f"**Outstanding order with id {self.args[1]}** does not exist!"])
+            return
 
 with open(os.path.join(ROOT, 'config/TOKEN'), 'r') as token_file:
     TOKEN = token_file.read()

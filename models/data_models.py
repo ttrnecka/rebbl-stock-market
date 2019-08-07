@@ -1,6 +1,9 @@
+from sqlalchemy import or_, UniqueConstraint
+
 from .base_model import db, Base, QueryWithSoftDelete
 import logging
 import json
+import datetime
 from logging.handlers import RotatingFileHandler
 import os
 
@@ -29,7 +32,7 @@ class User(Base):
 
     query_class = QueryWithSoftDelete
 
-    orders = db.relationship('Order', backref=db.backref('user', lazy=False), cascade="all, delete-orphan",lazy=True)
+    orders = db.relationship('Order', order_by="asc(Order.date_created)", backref=db.backref('user', lazy=False), cascade="all, delete-orphan",lazy=True)
 
     def __init__(self,name="",disc_id=0):
         self.name = name
@@ -93,13 +96,34 @@ class User(Base):
 class Stock(Base):
     __tablename__ = 'stocks'
     name = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    code = db.Column(db.String(30), unique=False, nullable=False, index=True)
     unit_price = db.Column(db.Float, nullable=False)
     orders = db.relationship('Order', backref=db.backref('stock', lazy=False), cascade="save-update",lazy=True)
 
     @classmethod
     def find_all_by_name(cls,name):
-        return cls.query.filter(cls.name.ilike(f'%{name}%')).all()
+        return cls.query.filter(or_(cls.name.ilike(f'%{name}%'), cls.code.ilike(f'%{name}%'))).all()
 
+    @classmethod
+    def find_by_code(cls,name):
+        return cls.query.filter(cls.code.ilike(f'{name}')).one_or_none()
+
+
+class Share(Base):
+    __tablename__ = 'shares'
+
+    stock_id = db.Column(db.Integer, db.ForeignKey('stocks.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    units = db.Column(db.Integer,nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('stock_id', 'user_id', name='uix_stock_id_user_id'),
+    )
+
+    stock = db.relationship("Stock", backref=db.backref('shares', cascade="all, delete-orphan"), foreign_keys=[stock_id])
+    user = db.relationship("User", backref=db.backref('shares', cascade="all, delete-orphan"), foreign_keys=[user_id])
+    
 class Order(Base):
     __tablename__ = 'orders'
     operation = db.Column(db.String(80), nullable=False)
@@ -113,6 +137,10 @@ class Order(Base):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     description = db.Column(db.String(255), nullable=False)
     processed = db.Column(db.Boolean, default=False, nullable=False)
+    result = db.Column(db.String(255), nullable=True)
+    success = db.Column(db.Boolean, default=False, nullable=False)
+
+    transaction = db.relationship('Transaction',uselist=False, backref=db.backref('order', lazy=True), cascade="all, delete-orphan",lazy=False)
 
 class Account(Base):
     __tablename__ = 'accounts'
