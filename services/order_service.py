@@ -82,7 +82,7 @@ class OrderService:
                         share.units = shares
 
                     order.success = True
-                    order.result = f"Bought {order.final_shares} share(s) for {order.final_price} credits"
+                    order.result = f"Bought {order.final_shares} {order.stock.code} share(s) for {order.final_price} credits"
                     tran = Transaction(order=order, price=order.final_price, description=order.result)
                 else:
                     order.success = False
@@ -112,7 +112,7 @@ class OrderService:
                     db.session.delete(share)
 
                 order.success = True
-                order.result = f"Sold {order.final_shares} share(s) for {order.final_price} credits"
+                order.result = f"Sold {order.final_shares} {order.stock.code} share(s) for {order.final_price} credits"
                 tran = Transaction(order=order, price=-1*order.final_price, description=order.result)
             else:
                 order.success = False

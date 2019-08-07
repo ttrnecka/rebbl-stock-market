@@ -157,7 +157,7 @@ class DiscordCommand:
         msg += "Creates order to SELL Stock\n"
         msg += "USAGE:\n"
         msg += "!sell <stock_code> [units]\n"
-        msg += "\t<stock_code>: code of stock from !stock or !list\n"
+        msg += "\t<stock_code>: code of stock from !stock or !list or *all*\n"
         msg += "\t[units]: optional, if provided sell up to [units] of stock, if omitted, sell all units of that stock\n"
         msg += "```"
         return msg
@@ -169,7 +169,7 @@ class DiscordCommand:
         msg += "Cancels outstanding order\n"
         msg += "USAGE:\n"
         msg += "!cancel <id>\n"
-        msg += "\t<id>: id of the order from the !list\n"
+        msg += "\t<id>: id of the order from the !list or *all*\n"
         msg += "```"
         return msg
 
@@ -354,10 +354,13 @@ class DiscordCommand:
                     '{:5s} - {:25}: {:<10s}'.format("Code","Team Name","Unit Price")
                 )
                 msg.append(49*"-")
-                for stock in stocks:
+                for stock in stocks[0:20]:
                     msg.append(
                         '{:5s} - {:25}: {:7.2f}'.format(stock.code, stock.name, stock.unit_price)
                     )
+                if len(stocks) > 20:
+                    msg.append("...")
+                    msg.append("More stock follows, narrow your search!")
                 msg.append("```")
                 await self.reply(msg)
 
@@ -415,31 +418,39 @@ class DiscordCommand:
         if len(self.args) not in [2,3]:
             await self.reply(["Incorrect number of arguments!!!", self.__class__.sell_help()])
             return
-        try:
-            stock = Stock.find_by_code(self.args[1])
-        except MultipleResultsFound as exc:
-            await self.reply([f"Stock code **{self.args[1]}** is not unique!!!",])
-            return
-
-        if not stock:
-            await self.reply([f"Stock code **{self.args[1]}** not found!"])
-            return
-        
-        if len(self.args) == 3:
-            if not represents_int(self.args[2]) or (represents_int(self.args[2]) and not int(self.args[2]) > 0):
-                await self.reply([f"**{self.args[2]}** must be whole positive number!"])
-                return
+        if self.args[1] == "all":
+            if len(user.shares):
+                for share in user.shares:
+                    order = OrderService.create(user, share.stock, **order_dict)
+                    await self.reply([f"Order placed succesfully."," ",f"**{order.description}**"])
             else:
-                order_dict['sell_shares'] = int(self.args[2])
-        
-        share = Share.query.join(Share.user, Share.stock).filter(User.id == user.id, Stock.id == stock.id).one_or_none()
-        
-        if not share:
-            await self.reply([f"You do not own any shares of **{self.args[1]}** stock!"])
-            return
+                await self.reply([f"You do not own any shares"])
+        else:
+            try:
+                stock = Stock.find_by_code(self.args[1])
+            except MultipleResultsFound as exc:
+                await self.reply([f"Stock code **{self.args[1]}** is not unique!!!",])
+                return
 
-        order = OrderService.create(user, stock, **order_dict)
-        await self.reply([f"Order placed succesfully."," ",f"**{order.description}**"])
+            if not stock:
+                await self.reply([f"Stock code **{self.args[1]}** not found!"])
+                return
+            
+            if len(self.args) == 3:
+                if not represents_int(self.args[2]) or (represents_int(self.args[2]) and not int(self.args[2]) > 0):
+                    await self.reply([f"**{self.args[2]}** must be whole positive number!"])
+                    return
+                else:
+                    order_dict['sell_shares'] = int(self.args[2])
+            
+            share = Share.query.join(Share.user, Share.stock).filter(User.id == user.id, Stock.id == stock.id).one_or_none()
+            
+            if not share:
+                await self.reply([f"You do not own any shares of **{self.args[1]}** stock!"])
+                return
+
+            order = OrderService.create(user, stock, **order_dict)
+            await self.reply([f"Order placed succesfully."," ",f"**{order.description}**"])
         return
 
     async def __run_cancel(self):
@@ -456,16 +467,23 @@ class DiscordCommand:
             await self.reply(["Incorrect number of arguments!!!", self.__class__.cancel_help()])
             return
 
-        if not represents_int(self.args[1]):
-            await self.reply([f"**{self.args[1]}** must be whole number!"])
+        if not represents_int(self.args[1]) and self.args[1] != "all":
+            await self.reply([f"**{self.args[1]}** must be whole number or *all*!"])
             return
-        
-        if OrderService.cancel(self.args[1], user):
-            await self.reply([f"Order ID {self.args[1]} has been cancelled"])
+
+        if self.args[1] == "all":
+            for order in user.orders:
+                if not order.processed:
+                    OrderService.cancel(order.id, user)
+                    await self.reply([f"Order ID {order.id} has been cancelled"])
             return
         else:
-            await self.reply([f"**Outstanding order with id {self.args[1]}** does not exist!"])
-            return
+            if OrderService.cancel(self.args[1], user):
+                await self.reply([f"Order ID {self.args[1]} has been cancelled"])
+                return
+            else:
+                await self.reply([f"**Outstanding order with id {self.args[1]}** does not exist!"])
+                return
 
 with open(os.path.join(ROOT, 'config/TOKEN'), 'r') as token_file:
     TOKEN = token_file.read()

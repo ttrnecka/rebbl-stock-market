@@ -1,0 +1,7 @@
+DONE
+sell all
+Stock - return unique constrain on stck code
+Account amount turn to float
+!stock - long output breaks formatting
+!stock - to limit to first 20 teams
+cancel all

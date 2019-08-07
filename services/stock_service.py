@@ -6,7 +6,7 @@ from models.base_model import db
 from .sheet_service import SheetService
 
 class StockService:
-    non_alphanum_regexp = re.compile('[^a-zA-Z]')
+    non_alphanum_regexp = re.compile('[^a-zA-Z0-9]')
     @classmethod
     def update(cls):
         stocks = SheetService.stocks(refresh=True)

@@ -96,7 +96,7 @@ class User(Base):
 class Stock(Base):
     __tablename__ = 'stocks'
     name = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    code = db.Column(db.String(30), unique=False, nullable=False, index=True)
+    code = db.Column(db.String(30), unique=True, nullable=False, index=True)
     unit_price = db.Column(db.Float, nullable=False)
     orders = db.relationship('Order', backref=db.backref('stock', lazy=False), cascade="save-update",lazy=True)
 
@@ -144,8 +144,8 @@ class Order(Base):
 
 class Account(Base):
     __tablename__ = 'accounts'
-    INIT_CASH = 3000
-    amount = db.Column(db.Integer, default=INIT_CASH, nullable=False)
+    INIT_CASH = 10000.0
+    amount = db.Column(db.Float, default=INIT_CASH, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     transactions = db.relationship('Transaction', backref=db.backref('account', lazy=False), cascade="all, delete-orphan",lazy=False)
