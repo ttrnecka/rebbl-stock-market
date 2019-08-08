@@ -415,7 +415,7 @@ class DiscordCommand:
 
         
         order = OrderService.create(user, stock, **order_dict)
-        await self.reply([f"Order {order.id} placed succesfully."," ",f"**{order.description}**"])
+        await self.reply([f"Order **{order.id}** placed succesfully."," ",f"**{order.description}**"])
         return
 
     async def __run_sell(self):
@@ -466,7 +466,7 @@ class DiscordCommand:
                 return
 
             order = OrderService.create(user, stock, **order_dict)
-            await self.reply([f"Order {order.id} placed succesfully."," ",f"**{order.description}**"])
+            await self.reply([f"Order **{order.id}** placed succesfully."," ",f"**{order.description}**"])
         return
 
     async def __run_cancel(self):
