@@ -226,7 +226,7 @@ class DiscordCommand:
                 total_value += share.units * share.stock.unit_price
         
             msg.append("```") 
-            msg.append("**Total Shares Value:** {9:2f}".format(total_value))
+            msg.append("**Total Shares Value:** {:9.2f}".format(total_value))
 
         msg.append("")
         msg.append(f"**Outstanding Orders:**")
