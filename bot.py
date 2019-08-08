@@ -227,6 +227,7 @@ class DiscordCommand:
         
             msg.append("```") 
             msg.append("**Total Shares Value:** {:9.2f}".format(total_value))
+            msg.append("**Balance:** {:9.2f}".format(total_value+user.account.amount))
 
         msg.append("")
         msg.append(f"**Outstanding Orders:**")
