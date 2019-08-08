@@ -217,22 +217,30 @@ class DiscordCommand:
         ]
 
         total_value = 0
-        msg.append("```")
-        for share in user.shares:
-            msg.append(
-                '{:5s} - {:25s}: {:3d} x {:7.2f}'.format(share.stock.code, share.stock.name, share.units, share.stock.unit_price)
-            )
-            total_value += share.units * share.stock.unit_price
-    
-        msg.append("```") 
-        msg.append("")    
-        msg.append(f"**Total Shares Value:** {total_value}")
+        if user.shares:
+            msg.append("```")
+            for share in user.shares:
+                msg.append(
+                    '{:5s} - {:25s}: {:3d} x {:7.2f}'.format(share.stock.code, share.stock.name, share.units, share.stock.unit_price)
+                )
+                total_value += share.units * share.stock.unit_price
+        
+            msg.append("```") 
+            msg.append(f"**Total Shares Value:** {total_value}")
 
         msg.append("")
         msg.append(f"**Outstanding Orders:**")
+        msg.append(f"*Sell:*")
 
         for order in user.orders:
-            if not order.processed:
+            if not order.processed and order.operation=="sell":
+                msg.append(f"{order.id}. {order.description}")
+        msg.append(" ")
+
+        msg.append(f"*Buy:*")
+
+        for order in user.orders:
+            if not order.processed and order.operation=="buy":
                 msg.append(f"{order.id}. {order.description}")
         msg.append(" ")
 
@@ -313,8 +321,15 @@ class DiscordCommand:
             OrderService.close()
             await self.short_reply("Done")
 
-            await self.short_reply("Processing orders:")
-            orders = Order.query.order_by(asc(Order.date_created)).filter(Order.processed == False).all()
+            await self.short_reply("Processing SELL orders...")
+            orders = Order.query.order_by(asc(Order.date_created)).filter(Order.processed == False, Order.operation == "sell").all()
+            for order in orders:
+                order = OrderService.process(order)
+                await self.trade_notification(order.result, order.user)
+            await self.short_reply("Done")
+
+            await self.short_reply("Processing BUY orders...")
+            orders = Order.query.order_by(asc(Order.date_created)).filter(Order.processed == False, Order.operation == "buy").all()
             for order in orders:
                 order = OrderService.process(order)
                 await self.trade_notification(order.result, order.user)

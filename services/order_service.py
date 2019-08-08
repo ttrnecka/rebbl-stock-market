@@ -98,8 +98,10 @@ class OrderService:
             share = Share.query.join(Share.user, Share.stock).filter(User.id == order.user.id, Stock.id == order.stock.id).one_or_none()
             if share:
                 units = share.units
+                left = False
                 if order.sell_shares and order.sell_shares < units:
                     units = order.sell_shares
+                    left = True
                 
                 funds = units * order.stock.unit_price
 
@@ -107,8 +109,7 @@ class OrderService:
                 order.final_price = funds
 
                 share.units = Share.units - units
-
-                if share.units == 0:
+                if not left:
                     db.session.delete(share)
 
                 order.success = True
