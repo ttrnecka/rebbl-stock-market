@@ -144,7 +144,7 @@ class Order(Base):
 
 class Account(Base):
     __tablename__ = 'accounts'
-    INIT_CASH = 10000.0
+    INIT_CASH = 30000.0
     amount = db.Column(db.Float, default=INIT_CASH, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
