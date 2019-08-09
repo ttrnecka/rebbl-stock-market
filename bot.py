@@ -291,9 +291,11 @@ class DiscordCommand:
             return
 
         msg = self.list_message(user)
-
-        await self.send_message(self.message.author, msg)
-        await self.short_reply("Info sent to PM")
+        if user.short_name() in ["MajorStockBot"]:
+            await self.reply(msg)
+        else:
+            await self.send_message(self.message.author, msg)
+            await self.short_reply("Info sent to PM")
 
     async def __run_admin(self):
         # if not started from admin-channel
