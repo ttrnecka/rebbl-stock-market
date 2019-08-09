@@ -384,7 +384,13 @@ class DiscordCommand:
             if len(self.args) < 2:
                 await self.short_reply("Provide partial or full stock name")
             else:
-                stocks = Stock.find_all_by_name(" ".join(self.args[1:]))
+                if self.args[1] in ["top", "bottom"] and len(self.args) ==3 and represents_int(self.args[2]):
+                    if self.args[1] == "top":
+                        stocks = Stock.find_top(self.args[2])
+                    else:
+                        stocks = Stock.find_bottom(self.args[2])
+                else:
+                    stocks = Stock.find_all_by_name(" ".join(self.args[1:]))
                 msg = ["```"]
                 msg.append(
                     '{:5s} - {:25}: {:<10s}{:>24s}'.format("Code","Team Name","Unit Price","Change Since Last Week")

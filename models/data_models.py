@@ -1,4 +1,4 @@
-from sqlalchemy import or_, UniqueConstraint
+from sqlalchemy import or_, UniqueConstraint, desc
 
 from .base_model import db, Base, QueryWithSoftDelete
 import logging
@@ -104,6 +104,14 @@ class Stock(Base):
     @classmethod
     def find_all_by_name(cls,name):
         return cls.query.filter(or_(cls.name.ilike(f'%{name}%'), cls.code.ilike(f'%{name}%'))).all()
+
+    @classmethod
+    def find_top(cls,limit=10):
+        return cls.query.order_by(desc(cls.unit_price)).limit(limit).all()
+
+    @classmethod
+    def find_bottom(cls,limit=10):
+        return cls.query.order_by(cls.unit_price).filter(cls.unit_price > 0 ).limit(limit).all()
 
     @classmethod
     def find_by_code(cls,name):
