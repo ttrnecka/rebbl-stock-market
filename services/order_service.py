@@ -7,6 +7,7 @@ class OrderError(Exception):
     pass
 
 class OrderService:
+    MAX_SHARE_UNITS = 10
     __open = True
 
     @classmethod
@@ -32,9 +33,9 @@ class OrderService:
 
         if kwargs['operation'] in ["buy"]:
             if kwargs.get('buy_funds', None):
-                order.description = f"Buy {stock.code} ({stock.name}) for up to {kwargs['buy_funds']} credits"
+                order.description = f"Buy {stock.code} ({stock.name}) for up to {kwargs['buy_funds']} credits or up to {cls.MAX_SHARE_UNITS} owned shares limit"
             else:
-                order.description = f"Buy {stock.code} ({stock.name}) for all available credits"
+                order.description = f"Buy {stock.code} ({stock.name}) for all available credits or up to {cls.MAX_SHARE_UNITS} owned shares limit"
         if kwargs['operation'] in ["sell"]:
             if kwargs.get('sell_shares', None):
                 order.description = f"Sell up to {kwargs['sell_shares']} units of {stock.code} ({stock.name})"
@@ -69,6 +70,13 @@ class OrderService:
             if order.stock.unit_price:
                 share = Share.query.join(Share.user, Share.stock).filter(User.id == order.user.id, Stock.id == order.stock.id).one_or_none()
                 shares = funds // order.stock.unit_price
+
+                possible_shares = cls.MAX_SHARE_UNITS
+                if share:
+                    possible_shares -= share.units
+                
+                if possible_shares < shares:
+                    shares = possible_shares
 
                 order.final_shares = shares
                 order.final_price = shares * order.stock.unit_price
