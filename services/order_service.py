@@ -26,10 +26,11 @@ class OrderService:
     def create(cls, user, stock, **kwargs):
         if not cls.is_open():
             raise OrderError("Market is closed!!!")
-
-        share = Share.query.join(Share.user, Share.stock).filter(User.id == user.id, Stock.id == stock.id).one_or_none()
-        if share and share.units >= cls.MAX_SHARE_UNITS:
-            raise OrderError(f"You already own {cls.MAX_SHARE_UNITS} shares of {stock.code}")
+        
+        if kwargs['operation'] in ["buy"]:
+            share = Share.query.join(Share.user, Share.stock).filter(User.id == user.id, Stock.id == stock.id).one_or_none()
+            if share and share.units >= cls.MAX_SHARE_UNITS:
+                raise OrderError(f"You already own {cls.MAX_SHARE_UNITS} shares of {stock.code}")
 
         order = Order(**kwargs)
         user.orders.append(order)
