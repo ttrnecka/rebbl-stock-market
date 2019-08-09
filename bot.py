@@ -241,7 +241,7 @@ class DiscordCommand:
                 else:
                     gain = str(gain)
                 msg.append(
-                    '{:5s} - {:25s}: {:3d} x {:7.2f}, Last Week Share Price Change: {:>7s}'.format(share.stock.code, share.stock.name, share.units, share.stock.unit_price, gain)
+                    '{:5s} - {:25s}: {:3d} x {:7.2f}, Change: {:>7s}'.format(share.stock.code, share.stock.name, share.units, share.stock.unit_price, gain)
                 )
                 total_value += share.units * share.stock.unit_price
         
