@@ -233,7 +233,7 @@ class DiscordCommand:
         if user.shares:
             msg.append("```")
             for share in user.shares:
-                gain = round(share.units * share.stock.unit_price_change, 2)
+                gain = round(share.stock.unit_price_change, 2)
                 if gain > 0:
                     gain = "+"+str(gain)
                 elif gain == 0:
@@ -241,7 +241,7 @@ class DiscordCommand:
                 else:
                     gain = str(gain)
                 msg.append(
-                    '{:5s} - {:25s}: {:3d} x {:7.2f}, Last Trade: {:>7s}'.format(share.stock.code, share.stock.name, share.units, share.stock.unit_price, gain)
+                    '{:5s} - {:25s}: {:3d} x {:7.2f}, Last Week Share Price Change: {:>7s}'.format(share.stock.code, share.stock.name, share.units, share.stock.unit_price, gain)
                 )
                 total_value += share.units * share.stock.unit_price
         
