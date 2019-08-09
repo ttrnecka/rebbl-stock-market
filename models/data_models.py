@@ -97,7 +97,8 @@ class Stock(Base):
     __tablename__ = 'stocks'
     name = db.Column(db.String(80), unique=True, nullable=False, index=True)
     code = db.Column(db.String(30), unique=True, nullable=False, index=True)
-    unit_price = db.Column(db.Float, nullable=False)
+    unit_price = db.Column(db.Numeric(14,7), nullable=False)
+    unit_price_change = db.Column(db.Numeric(14,7), nullable=False, default = 0.0)
     orders = db.relationship('Order', backref=db.backref('stock', lazy=False), cascade="save-update",lazy=True)
 
     @classmethod
@@ -127,12 +128,12 @@ class Share(Base):
 class Order(Base):
     __tablename__ = 'orders'
     operation = db.Column(db.String(80), nullable=False)
-    buy_funds = db.Column(db.Float, nullable=True)
+    buy_funds = db.Column(db.Numeric(14,7), nullable=True)
     sell_shares = db.Column(db.Integer, nullable=True)
-    final_price = db.Column(db.Float, nullable=True)
+    final_price = db.Column(db.Numeric(14,7), nullable=True)
     final_shares = db.Column(db.Integer, nullable=True)
     # price at the time of order processing
-    share_price = db.Column(db.Float, nullable=True)
+    share_price = db.Column(db.Numeric(14,7), nullable=True)
     stock_id = db.Column(db.Integer, db.ForeignKey('stocks.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     description = db.Column(db.String(255), nullable=False)
@@ -145,7 +146,7 @@ class Order(Base):
 class Account(Base):
     __tablename__ = 'accounts'
     INIT_CASH = 30000.0
-    amount = db.Column(db.Float, default=INIT_CASH, nullable=False)
+    amount = db.Column(db.Numeric(14,7), default=INIT_CASH, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     transactions = db.relationship('Transaction', backref=db.backref('account', lazy=False), cascade="all, delete-orphan",lazy=False)

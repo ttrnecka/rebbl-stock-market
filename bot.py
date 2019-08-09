@@ -225,7 +225,7 @@ class DiscordCommand:
     def list_message(self,user):
         msg = [
             f"**User:** {user.short_name()}\n",
-            f"**Bank:** {user.account.amount} credits\n",
+            f"**Bank:** {round(user.account.amount, 2)} credits\n",
             f"**Shares:**",
         ]
 
@@ -233,8 +233,15 @@ class DiscordCommand:
         if user.shares:
             msg.append("```")
             for share in user.shares:
+                gain = round(share.units * share.stock.unit_price_change, 2)
+                if gain > 0:
+                    gain = "+"+str(gain)
+                elif gain == 0:
+                    gain = "0.00"
+                else:
+                    gain = str(gain)
                 msg.append(
-                    '{:5s} - {:25s}: {:3d} x {:7.2f}'.format(share.stock.code, share.stock.name, share.units, share.stock.unit_price)
+                    '{:5s} - {:25s}: {:3d} x {:7.2f}, Last Trade: {:>7s}'.format(share.stock.code, share.stock.name, share.units, share.stock.unit_price, gain)
                 )
                 total_value += share.units * share.stock.unit_price
         
@@ -268,7 +275,7 @@ class DiscordCommand:
             user = UserService.new_coach(self.message.author, self.message.author.id)
             msg = [
                 f"**{self.message.author.mention}** account created\n",
-                f"**Bank:** {user.account.amount} credits",
+                f"**Bank:** {round(user.account.amount, 2)} credits",
             ]
             await self.reply(msg)
 
@@ -380,12 +387,12 @@ class DiscordCommand:
                 stocks = Stock.find_all_by_name(" ".join(self.args[1:]))
                 msg = ["```"]
                 msg.append(
-                    '{:5s} - {:25}: {:<10s}'.format("Code","Team Name","Unit Price")
+                    '{:5s} - {:25}: {:<10s}{:>24s}'.format("Code","Team Name","Unit Price","Change Since Last Week")
                 )
-                msg.append(49*"-")
+                msg.append(69*"-")
                 for stock in stocks[0:20]:
                     msg.append(
-                        '{:5s} - {:25}: {:7.2f}'.format(stock.code, stock.name, stock.unit_price)
+                        '{:5s} - {:25}: {:7.2f}{:>24.2f}'.format(stock.code, stock.name, stock.unit_price, stock.unit_price_change)
                     )
                 if len(stocks) > 20:
                     msg.append("...")

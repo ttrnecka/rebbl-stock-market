@@ -1,5 +1,6 @@
 """StockService helpers"""
 import re
+from decimal import Decimal
 
 from models.data_models import Stock
 from models.base_model import db
@@ -17,7 +18,8 @@ class StockService:
             stock_dict = {
                 'name':stock['Stock'],
                 'unit_price':stock['Value'],
-                'code': cls.non_alphanum_regexp.sub('', stock['Code'])
+                'code': cls.non_alphanum_regexp.sub('', stock['Code']),
+                'unit_price_change': Decimal(stock['Value']) - db_stock.unit_price
             }
             db_stock.update(**stock_dict)
             db.session.add(db_stock)
