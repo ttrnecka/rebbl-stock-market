@@ -15,6 +15,7 @@ class StockService:
             db_stock = Stock.query.filter_by(name=stock['Stock']).one_or_none()
             if not db_stock:
                 db_stock = Stock()
+                db_stock.unit_price = Decimal(stock['Value'])
             stock_dict = {
                 'name':stock['Stock'],
                 'unit_price':stock['Value'],
