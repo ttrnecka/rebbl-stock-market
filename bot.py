@@ -387,7 +387,7 @@ class DiscordCommand:
                 await self.short_reply("Provide partial or full stock name")
             else:
                 limit = 20
-                if self.args[1] in ["top", "bottom"] and len(self.args) ==3 and represents_int(self.args[2]) and int(self.args[2]) > 0:
+                if self.args[1] in ["top", "bottom"] and len(self.args) ==3 and represents_int(self.args[2]) and int(self.args[2]) > 0 and int(self.args[2]) <= limit:
                     if self.args[1] == "top":
                         stocks = Stock.find_top(self.args[2])
                     else:
