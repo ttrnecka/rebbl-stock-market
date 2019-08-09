@@ -133,6 +133,8 @@ class DiscordCommand:
                 await self.__run_sell()
             elif self.cmd.startswith('!cancel'):
                 await self.__run_cancel()
+            elif self.cmd.startswith('!top'):
+                await self.__run_top()
         except Exception as e:
             await self.transaction_error(e)
             #raising will not kill the discord bot but will cause it to log this to log as well
@@ -170,6 +172,17 @@ class DiscordCommand:
         msg += "USAGE:\n"
         msg += "!cancel <id>\n"
         msg += "\t<id>: id of the order from the !list or *all*\n"
+        msg += "```"
+        return msg
+
+    @classmethod
+    def top_help(cls):
+        """help message"""
+        msg = "```"
+        msg += "List top investors\n"
+        msg += "USAGE:\n"
+        msg += "!top <count>\n"
+        msg += "\t<count>: count of the top investors to display (max 50)\n"
         msg += "```"
         return msg
 
@@ -501,6 +514,40 @@ class DiscordCommand:
                 await self.reply([f"**Outstanding order with id {self.args[1]}** does not exist!"])
                 return
 
+    async def __run_top(self):
+       
+        if len(self.args) not in [2]:
+            await self.reply(["Incorrect number of arguments!!!", self.__class__.top_help()])
+            return
+
+        if not represents_int(self.args[1]) or int(self.args[1]) > 50:
+            await self.reply([f"**{self.args[1]}** must be whole number and be less or equal 50!"])
+            return
+        
+        users = User.query.all()
+
+        user_tuples = []
+        for user in users:
+            total_value = 0
+            for share in user.shares:
+                total_value += share.units * share.stock.unit_price
+            balance = user.account.amount + total_value
+            user_tuples.append((balance, user))
+
+        sorted_users = sorted(user_tuples, key=lambda x: x[0], reverse=True)
+
+        max = int(self.args[1])
+        if max > len(sorted_users):
+            max = len(sorted_users)
+
+        msg = ["```asciidoc"]
+        msg.append(" = Place = | = Balance = | = Investor =")
+        for position, tup in enumerate(sorted_users[0:max], 1):
+            msg.append("{:3d}.       |{:12.2f} | {:s}".format(position, tup[0],tup[1].short_name()))
+        msg.append("```")
+
+        await self.reply(msg)
+        return
 with open(os.path.join(ROOT, 'config/TOKEN'), 'r') as token_file:
     TOKEN = token_file.read()
 

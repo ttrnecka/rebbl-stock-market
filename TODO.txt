@@ -1,3 +1,8 @@
+Order process notification - number format to 2 decimals
+Price change since last trade
+share limit
+
+
 DONE
 sell all
 Stock - return unique constrain on stck code
