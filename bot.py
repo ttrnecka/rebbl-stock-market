@@ -386,7 +386,8 @@ class DiscordCommand:
             if len(self.args) < 2:
                 await self.short_reply("Provide partial or full stock name")
             else:
-                if self.args[1] in ["top", "bottom"] and len(self.args) ==3 and represents_int(self.args[2]):
+                limit = 20
+                if self.args[1] in ["top", "bottom"] and len(self.args) ==3 and represents_int(self.args[2]) and int(self.args[2]) > 0:
                     if self.args[1] == "top":
                         stocks = Stock.find_top(self.args[2])
                     else:
@@ -398,7 +399,7 @@ class DiscordCommand:
                     '{:5s} - {:25}: {:<10s}{:>24s}'.format("Code","Team Name","Unit Price","Change Since Last Week")
                 )
                 msg.append(69*"-")
-                for stock in stocks[0:20]:
+                for stock in stocks[0:limit]:
                     msg.append(
                         '{:5s} - {:25}: {:7.2f}{:>24.2f}'.format(stock.code, stock.name, stock.unit_price, stock.unit_price_change)
                     )
@@ -516,10 +517,12 @@ class DiscordCommand:
             return
 
         if self.args[1] == "all":
+            mgs = []
             for order in user.orders:
                 if not order.processed:
                     OrderService.cancel(order.id, user)
-                    await self.reply([f"Order ID {order.id} has been cancelled"])
+                    mgs.append(f"Order ID {order.id} has been cancelled")
+            await self.reply(mgs)
             return
         else:
             if OrderService.cancel(self.args[1], user):
@@ -535,8 +538,8 @@ class DiscordCommand:
             await self.reply(["Incorrect number of arguments!!!", self.__class__.top_help()])
             return
 
-        if not represents_int(self.args[1]) or int(self.args[1]) > 50:
-            await self.reply([f"**{self.args[1]}** must be whole number and be less or equal 50!"])
+        if not represents_int(self.args[1]) or int(self.args[1]) > 50 or int(self.args[1]) <= 0:
+            await self.reply([f"**{self.args[1]}** must be whole positive number and be less or equal 50!"])
             return
         
         users = User.query.all()
