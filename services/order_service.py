@@ -27,6 +27,10 @@ class OrderService:
         if not cls.is_open():
             raise OrderError("Market is closed!!!")
 
+        share = Share.query.join(Share.user, Share.stock).filter(User.id == user.id, Stock.id == stock.id).one_or_none()
+        if share and share.units >= cls.MAX_SHARE_UNITS:
+            raise OrderError(f"You already own {cls.MAX_SHARE_UNITS} shares of {stock.code}")
+
         order = Order(**kwargs)
         user.orders.append(order)
         order.stock = stock
@@ -94,7 +98,7 @@ class OrderService:
                     tran = Transaction(order=order, price=order.final_price, description=order.result)
                 else:
                     order.success = False
-                    order.result = "Not enough funds to buy any shares"
+                    order.result = f"Not enough funds to buy any shares or {cls.MAX_SHARE_UNITS} share limit reached"
             else:
                 order.success = False
                 order.result = "Cannot buy stock with 0 price"
