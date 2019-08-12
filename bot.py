@@ -145,8 +145,8 @@ class DiscordCommand:
     @classmethod
     def help_help(cls):
         """help message"""
-        msg = "```asciidoc"
-        msg += "= Available commands =\n"
+        msg = "```asciidoc\n"
+        msg += " = Available commands =\n"
         msg += "!newuser - creates new user \n"
         msg += "!buy - place BUY order \n"
         msg += "!sell - place SELL order \n"
