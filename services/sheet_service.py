@@ -14,8 +14,8 @@ CREDS = ServiceAccountCredentials.from_json_keyfile_name(
 class SheetService:
     """Namespace class"""
     #SPREADSHEET_ID = "1asnfGr4M1ec2IW46nv4md5glT2-Eq0j60iOuYsVsVeE"
-    #season 11
-    SPREADSHEET_ID="14_AbpkuAYWUw5cx_BmWVN91G_MgRCRUMWKSKIuUaTlg"
+    #season 12
+    SPREADSHEET_ID="1UuHysgRw2t1PzlEnqM_8QDACm0eX4uDe8LtO9scIhGQ"
     # dev spreadsheet below
     #SPREADSHEET_ID = "1asnfGr4M1ec2IW46nv4md5glT2-Eq0j60iOuYsVsVeE"
     MAIN_SHEET="Current Team Values"

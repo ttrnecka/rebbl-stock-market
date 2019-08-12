@@ -12,15 +12,19 @@ class StockService:
     def update(cls):
         stocks = SheetService.stocks(refresh=True)
         for stock in stocks:
-            db_stock = Stock.query.filter_by(name=stock['Stock']).one_or_none()
+            if not stock['Team(Sorted A-Z)']:
+                continue
+            db_stock = Stock.query.filter_by(name=stock['Team(Sorted A-Z)']).one_or_none()
             if not db_stock:
                 db_stock = Stock()
-                db_stock.unit_price = Decimal(stock['Value'])
+                db_stock.unit_price = Decimal(stock['Current Value'])
             stock_dict = {
-                'name':stock['Stock'],
-                'unit_price':stock['Value'],
+                'name':stock['Team(Sorted A-Z)'],
+                'unit_price':stock['Current Value'],
                 'code': cls.non_alphanum_regexp.sub('', stock['Code']),
-                'unit_price_change': Decimal(stock['Value']) - db_stock.unit_price
+                'unit_price_change': Decimal(stock['Current Value']) - db_stock.unit_price,
+                'race':stock['Race'],
+                'coach':stock['Coach'],
             }
             db_stock.update(**stock_dict)
             db.session.add(db_stock)

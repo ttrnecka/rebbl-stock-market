@@ -11,7 +11,7 @@ from sqlalchemy.orm.exc import MultipleResultsFound
 from web import db, app
 
 from services import SheetService, StockService, UserService, OrderService, OrderError
-from models.data_models import Stock, User, Order, Share
+from models.data_models import Stock, User, Order, Share, Transaction, TransactionError
 from misc.helpers import represents_int
 
 ROOT = os.path.dirname(__file__)
@@ -186,6 +186,19 @@ class DiscordCommand:
         msg += "```"
         return msg
 
+    @classmethod
+    def adminbank_help(cls):
+        """help message"""
+        msg = "```"
+        msg += "USAGE:\n"
+        msg += "!adminbank <amount> <user> <reason>\n"
+        msg += "\t<amount>: number of credits to add to bank, if negative is used, "
+        msg += "it will be deducted from bank\n"
+        msg += "\t<user>: user discord name or its part, must be unique\n"
+        msg += "\t<reason>: describe why you are changing the coach bank\n"
+        msg += "```"
+        return msg
+
     # must me under 2000 chars
     async def trade_notification(self, msg, user):
         """Notifies coach about bank change"""
@@ -221,6 +234,36 @@ class DiscordCommand:
         await self.send_message(self.message.channel, [text])
         logger.error(text)
         logger.error(traceback.format_exc())
+
+    # must me under 2000 chars
+    async def bank_notification(self, msg, user):
+        """Notifies coach about bank change"""
+        member = discord.utils.get(self.message.guild.members, id=user.disc_id)
+        if member is None:
+            mention = user.name
+        else:
+            mention = member.mention
+
+        channel = discord.utils.get(self.client.get_all_channels(), name='bank-notifications')
+        await self.send_message(channel, [f"{mention}: "+msg])
+        return
+
+    async def user_unique(self, name):
+        """finds uniq coach by name"""
+        users = User.find_all_by_name(name)
+        if not users:
+            await self.reply([f"<user> __{name}__ not found!!!\n"])
+            return None
+
+        if len(users) > 1:
+            emsg = f"<users> __{name}__ not **unique**!!!\n"
+            emsg += "Select one: "
+            for user in users:
+                emsg += user.name
+                emsg += " "
+            await self.short_reply(emsg)
+            return None
+        return users[0]
 
     def list_message(self,user):
         msg = [
@@ -379,8 +422,43 @@ class DiscordCommand:
                     msg.append(messg)
 
             await self.reply(msg)
-            
+        
+        if self.args[0] == '!adminbank':
+            # require username argument
+            if len(self.args) < 4:
+                await self.reply(["Not enough arguments!!!\n"])
+                await self.short_reply(self.__class__.adminbank_help())
+                return
 
+            # amount must be int
+            if not represents_int(self.args[1]) or int(self.args[1]) < 100000000:
+                await self.reply(["<amount> is not whole number!!!\n"])
+                return
+
+            user = await self.user_unique(self.args[2])
+            if user is None:
+                return
+
+            amount = int(self.args[1])
+            reason = ' '.join(str(x) for x in self.message.content.split(" ")[3:]) + " - updated by " + str(self.message.author.name)
+
+            tran = Transaction(description=reason, price=-1*amount)
+            try:
+                user.make_transaction(tran)
+            except TransactionError as e:
+                await self.transaction_error(e)
+                return
+            else:
+                msg = [
+                    f"Bank for {user.name} updated to **{user.account.amount}** credit:\n",
+                    f"Note: {reason}\n",
+                    f"Change: {amount} credits"
+                ]
+                await self.reply(msg)
+                await self.bank_notification(f"Your bank has been updated by **{amount}** credeits - {reason}", user)
+                return
+    
+            
     async def __run_stock(self):
         if(self.args[0])=="!stock":
             if len(self.args) < 2:

@@ -1,4 +1,5 @@
 Stock gain since the purchase
+Last week gain loss for coach
 
 DONE
 rder process notification - number format to 2 decimals
