@@ -135,11 +135,28 @@ class DiscordCommand:
                 await self.__run_cancel()
             elif self.cmd.startswith('!top'):
                 await self.__run_top()
+            elif self.cmd.startswith('!help'):
+                await self.__run_help()
         except Exception as e:
             await self.transaction_error(e)
             #raising will not kill the discord bot but will cause it to log this to log as well
             raise
 
+    @classmethod
+    def help_help(cls):
+        """help message"""
+        msg = "```asciidoc"
+        msg += "= Available commands =\n"
+        msg += "!newuser - creates new user \n"
+        msg += "!buy - place BUY order \n"
+        msg += "!sell - place SELL order \n"
+        msg += "!list - list your account info \n"
+        msg += "!cancel - CANCELs order \n"
+        msg += "!top - list TOP investors \n"
+        msg += "!buy - place BUY order \n"
+        msg += "!stock - search for available STOCK \n"
+        msg += "```"
+        return msg
     @classmethod
     def buy_help(cls):
         """help message"""
@@ -196,6 +213,18 @@ class DiscordCommand:
         msg += "it will be deducted from bank\n"
         msg += "\t<user>: user discord name or its part, must be unique\n"
         msg += "\t<reason>: describe why you are changing the coach bank\n"
+        msg += "```"
+        return msg
+    @classmethod
+    
+    def stock_help(cls):
+        """help message"""
+        msg = "```"
+        msg += "USAGE:\n"
+        msg += "!stock <str>\n"
+        msg += "\t<str>: search by team name, stock, code, race or coach name \n"
+        msg += "!stock top|bottom <X>\n"
+        msg += "\t<x>: find X top or bottom stocks"
         msg += "```"
         return msg
 
@@ -311,6 +340,10 @@ class DiscordCommand:
         return msg
 
     # commands
+    async def __run_help(self):
+        await self.reply([self.__class__.help_help()])
+        return
+
     async def __run_newuser(self):
         if User.get_by_discord_id(self.message.author.id):
             await self.reply([f"**{self.message.author.mention}** account exists already\n"])
@@ -462,7 +495,7 @@ class DiscordCommand:
     async def __run_stock(self):
         if(self.args[0])=="!stock":
             if len(self.args) < 2:
-                await self.short_reply("Provide partial or full stock name")
+                await self.reply(["Incorrect number of arguments!!!", self.__class__.stock_help()])
             else:
                 limit = 20
                 if self.args[1] in ["top", "bottom"] and len(self.args) ==3 and represents_int(self.args[2]) and int(self.args[2]) > 0 and int(self.args[2]) <= limit:
