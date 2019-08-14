@@ -105,20 +105,38 @@ class Stock(Base):
 
     @classmethod
     def find_all_by_name(cls,name):
-        return cls.query.filter(or_(cls.name.ilike(f'%{name}%'), cls.code.ilike(f'%{name}%'), cls.race.ilike(f'%{name}%'), cls.coach.ilike(f'%{name}%'))).all()
+        stocks = cls.query.filter(or_(cls.name.ilike(f'%{name}%'), cls.code.ilike(f'%{name}%'), cls.race.ilike(f'%{name}%'), cls.coach.ilike(f'%{name}%'))).all()
+        stocks = cls.add_share_data(stocks)
+        return stocks
 
     @classmethod
     def find_top(cls,limit=10):
-        return cls.query.order_by(desc(cls.unit_price)).limit(limit).all()
+        stocks = cls.query.order_by(desc(cls.unit_price)).limit(limit).all()
+        stocks = cls.add_share_data(stocks)
+        return stocks
 
     @classmethod
     def find_bottom(cls,limit=10):
-        return cls.query.order_by(cls.unit_price).filter(cls.unit_price > 0 ).limit(limit).all()
+        stocks = cls.query.order_by(cls.unit_price).filter(cls.unit_price > 0 ).limit(limit).all()
+        stocks = cls.add_share_data(stocks)
+        return stocks
+
+    @classmethod
+    def find_hot(cls,limit=10):
+        stocks =  cls.query.all()
+        stocks = cls.add_share_data(stocks)
+        sort = sorted(stocks,key=lambda x: x.share_count, reverse=True)
+        return sort[0:int(limit)]
 
     @classmethod
     def find_by_code(cls,name):
         return cls.query.filter(cls.code.ilike(f'{name}')).one_or_none()
 
+    @classmethod
+    def add_share_data(cls, stocks):
+        for stock in stocks:
+            stock.share_count = sum(share.units for share in stock.shares)
+        return stocks
 
 class Share(Base):
     __tablename__ = 'shares'

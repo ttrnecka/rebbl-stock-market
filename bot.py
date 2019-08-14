@@ -498,21 +498,23 @@ class DiscordCommand:
                 await self.reply(["Incorrect number of arguments!!!", self.__class__.stock_help()])
             else:
                 limit = 20
-                if self.args[1] in ["top", "bottom"] and len(self.args) ==3 and represents_int(self.args[2]) and int(self.args[2]) > 0 and int(self.args[2]) <= limit:
+                if self.args[1] in ["top", "bottom", "hot"] and len(self.args) ==3 and represents_int(self.args[2]) and int(self.args[2]) > 0 and int(self.args[2]) <= limit:
                     if self.args[1] == "top":
                         stocks = Stock.find_top(self.args[2])
-                    else:
+                    elif self.args[1] == "bottom":
                         stocks = Stock.find_bottom(self.args[2])
+                    else:
+                        stocks = Stock.find_hot(self.args[2])
                 else:
                     stocks = Stock.find_all_by_name(" ".join(self.args[1:]))
                 msg = ["```"]
                 msg.append(
-                    '{:5s} - {:25}: {:<10s}{:>24s}'.format("Code","Team Name","Unit Price","Change Since Last Week")
+                    '{:5s} - {:25}: {:<12s}{:<8s}{:<8s}'.format("Code","Team Name","Unit Price","Change", "Shares")
                 )
-                msg.append(69*"-")
+                msg.append(61*"-")
                 for stock in stocks[0:limit]:
                     msg.append(
-                        '{:5s} - {:25}: {:7.2f}{:>24.2f}'.format(stock.code, stock.name, stock.unit_price, stock.unit_price_change)
+                        '{:5s} - {:25}: {:10.2f}{:8.2f}{:8d}'.format(stock.code, stock.name, stock.unit_price, stock.unit_price_change, stock.share_count)
                     )
                 if len(stocks) > 20:
                     msg.append("...")
