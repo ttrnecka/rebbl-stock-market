@@ -129,6 +129,13 @@ class Stock(Base):
         return sort[0:int(limit)]
 
     @classmethod
+    def find_net(cls,limit=10):
+        stocks =  cls.query.all()
+        stocks = cls.add_share_data(stocks)
+        sort = sorted(stocks,key=lambda x: x.net_worth, reverse=True)
+        return sort[0:int(limit)]
+
+    @classmethod
     def find_by_code(cls,name):
         return cls.query.filter(cls.code.ilike(f'{name}')).one_or_none()
 
@@ -136,6 +143,7 @@ class Stock(Base):
     def add_share_data(cls, stocks):
         for stock in stocks:
             stock.share_count = sum(share.units for share in stock.shares)
+            stock.net_worth = stock.share_count * stock.unit_price
         return stocks
 
 class Share(Base):
