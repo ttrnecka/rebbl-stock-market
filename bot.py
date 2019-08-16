@@ -163,9 +163,12 @@ class DiscordCommand:
         msg = "```"
         msg += "Creates order to BUY Stock\n"
         msg += "USAGE:\n"
-        msg += "!buy <stock_code> [credit]\n"
+        msg += "!buy <stock_code> [credit|shares]\n"
         msg += "\t<stock_code>: code of stock from !stock\n"
-        msg += "\t[credit]: optional, if provided spend up to the amout for the stock, if ommited, buy as much as possible\n"
+        msg += f"\t[credit]: optional, if provided and more than {OrderService.MAX_SHARE_UNITS}\n"
+        msg += "\tspend up to the amout for the stock, if ommited, buy as much as possible\n"
+        msg += f"\t[shares]: optional, if provided and less or equal than {OrderService.MAX_SHARE_UNITS}\n"
+        msg += "\tbuy up to amount of shares of the stock\n"
         msg += "```"
         return msg
 
@@ -501,7 +504,7 @@ class DiscordCommand:
             if len(self.args) < 2:
                 await self.reply(["Incorrect number of arguments!!!", self.__class__.stock_help()])
             else:
-                limit = 20
+                limit = 24
                 if self.args[1] in ["top", "bottom", "hot", "net"] and len(self.args) ==3 and represents_int(self.args[2]) and int(self.args[2]) > 0 and int(self.args[2]) <= limit:
                     if self.args[1] == "top":
                         stocks = Stock.find_top(self.args[2])
@@ -559,7 +562,10 @@ class DiscordCommand:
                 await self.reply([f"**{self.args[2]}** must be whole positive number!"])
                 return
             else:
-                order_dict['buy_funds'] = self.args[2]
+                if int(self.args[2]) <= OrderService.MAX_SHARE_UNITS:
+                    order_dict['buy_shares'] = self.args[2]
+                else:
+                    order_dict['buy_funds'] = self.args[2]
 
         
         order = OrderService.create(user, stock, **order_dict)

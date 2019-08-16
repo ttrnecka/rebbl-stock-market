@@ -39,6 +39,8 @@ class OrderService:
         if kwargs['operation'] in ["buy"]:
             if kwargs.get('buy_funds', None):
                 order.description = f"Buy {stock.code} ({stock.name}) for up to {kwargs['buy_funds']} credits or up to {cls.MAX_SHARE_UNITS} owned shares limit"
+            elif kwargs.get('buy_shares', None):
+                order.description = f"Buy {stock.code} ({stock.name}) for up to {kwargs['buy_shares']} or up to {cls.MAX_SHARE_UNITS} owned shares limit"
             else:
                 order.description = f"Buy {stock.code} ({stock.name}) for all available credits or up to {cls.MAX_SHARE_UNITS} owned shares limit"
         if kwargs['operation'] in ["sell"]:
@@ -74,7 +76,10 @@ class OrderService:
             
             if order.stock.unit_price:
                 share = Share.query.join(Share.user, Share.stock).filter(User.id == order.user.id, Stock.id == order.stock.id).one_or_none()
-                shares = funds // order.stock.unit_price
+                if order.buy_shares:
+                    shares = order.buy_shares
+                else:
+                    shares = funds // order.stock.unit_price
 
                 possible_shares = cls.MAX_SHARE_UNITS
                 if share:

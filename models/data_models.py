@@ -165,6 +165,7 @@ class Order(Base):
     __tablename__ = 'orders'
     operation = db.Column(db.String(80), nullable=False)
     buy_funds = db.Column(db.Numeric(14,7), nullable=True)
+    buy_shares = db.Column(db.Integer, nullable=True)
     sell_shares = db.Column(db.Integer, nullable=True)
     final_price = db.Column(db.Numeric(14,7), nullable=True)
     final_shares = db.Column(db.Integer, nullable=True)
