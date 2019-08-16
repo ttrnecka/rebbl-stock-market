@@ -31,4 +31,14 @@ class SheetService:
             cls._stocks = sheet.get_all_records()
         return cls._stocks
 
+    @classmethod
+    def update_matches(cls, matches):
+        client = gspread.authorize(CREDS)
+        sheet = client.open_by_key(cls.SPREADSHEET_ID)
+        sheet.values_update(
+            'Bot Import!A1', 
+            params={'valueInputOption': 'RAW'}, 
+            body={'values': matches}
+        )
+
 #if __name__ == "__main__":

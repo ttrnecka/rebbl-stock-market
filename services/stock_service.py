@@ -14,15 +14,23 @@ class StockService:
         for stock in stocks:
             if not stock['Team(Sorted A-Z)']:
                 continue
-            db_stock = Stock.query.filter_by(name=stock['Team(Sorted A-Z)']).one_or_none()
+            st = f"'{stock['Team(Sorted A-Z)']}'"
+            db_stock = Stock.query.filter_by(name=st).one_or_none()
             if not db_stock:
                 db_stock = Stock()
                 db_stock.unit_price = Decimal(stock['Current Value'])
+                change = 0
+            else:
+                if db_stock.unit_price == Decimal(stock['Current Value']):
+                    change = db_stock.unit_price_change
+                else:
+                    change = Decimal(stock['Current Value']) - db_stock.unit_price,
+
             stock_dict = {
                 'name':stock['Team(Sorted A-Z)'],
                 'unit_price':stock['Current Value'],
                 'code': cls.non_alphanum_regexp.sub('', stock['Code']),
-                'unit_price_change': Decimal(stock['Current Value']) - db_stock.unit_price,
+                'unit_price_change': change,
                 'race':stock['Race'],
                 'coach':stock['Coach'],
             }
