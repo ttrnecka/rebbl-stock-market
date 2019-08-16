@@ -1,6 +1,6 @@
 """StockService helpers"""
 import re
-from decimal import Decimal
+from decimal import Decimal, getcontext
 
 from models.data_models import Stock
 from models.base_model import db
@@ -10,21 +10,23 @@ class StockService:
     non_alphanum_regexp = re.compile('[^a-zA-Z0-9]')
     @classmethod
     def update(cls):
+        getcontext().prec = 7
         stocks = SheetService.stocks(refresh=True)
         for stock in stocks:
             if not stock['Team(Sorted A-Z)']:
                 continue
-            st = f"'{stock['Team(Sorted A-Z)']}'"
+            st = stock['Team(Sorted A-Z)']
             db_stock = Stock.query.filter_by(name=st).one_or_none()
             if not db_stock:
                 db_stock = Stock()
                 db_stock.unit_price = Decimal(stock['Current Value'])
                 change = 0
+                db.session.add(db_stock)
             else:
-                if db_stock.unit_price == Decimal(stock['Current Value']):
+                if round(db_stock.unit_price,2) == round(Decimal(stock['Current Value']),2):
                     change = db_stock.unit_price_change
                 else:
-                    change = Decimal(stock['Current Value']) - db_stock.unit_price,
+                    change = Decimal(stock['Current Value']) - db_stock.unit_price
 
             stock_dict = {
                 'name':stock['Team(Sorted A-Z)'],
@@ -35,6 +37,5 @@ class StockService:
                 'coach':stock['Coach'],
             }
             db_stock.update(**stock_dict)
-            db.session.add(db_stock)
         db.session.commit()
     

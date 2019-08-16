@@ -7,7 +7,7 @@ import datetime as DT
 
 import bb2
 from web import db, app
-from services import SheetService, StockService
+from services import SheetService, StockService, AdminNotificationService
 
 app.app_context().push()
 
@@ -77,6 +77,7 @@ def main(argv):
                 matches.extend(data)
     except Exception as exc:
         logger.error(exc)
+        AdminNotificationService.notify(str(exc))
         raise exc
 
     logger.info("Matches colleted")
@@ -95,7 +96,13 @@ def main(argv):
     # turn dict to list
     matches = [list(match.values()) for match in matches]
 
-    SheetService.update_matches(matches)
+    try:
+        SheetService.update_matches(matches)
+    except Exception as exc:
+        logger.error(exc)
+        AdminNotificationService.notify(str(exc))
+        raise exc
+
     logger.info("Matches exported to sheet")
 
     try:
@@ -107,8 +114,14 @@ def main(argv):
         raise exp
     logger.info("Matches stored to file")
 
-    StockService.update()
-    logger.info("DB update")
+    try:
+        StockService.update()
+    except Exception as exc:
+        logger.error(exc)
+        AdminNotificationService.notify(str(exc))
+        raise exc
 
+    logger.info("DB update")
+    AdminNotificationService.notify("Match data has been refreshed successfully")
 if __name__ == "__main__":
     main(sys.argv[1:])
