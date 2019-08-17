@@ -26,7 +26,7 @@ class StockService:
                 if round(db_stock.unit_price,2) == round(Decimal(stock['Current Value']),2):
                     change = db_stock.unit_price_change
                 else:
-                    change = Decimal(stock['Current Value']) - db_stock.unit_price
+                    change = Decimal(stock['Current Value']) - Decimal(db_stock.unit_price)
 
             stock_dict = {
                 'name':stock['Team(Sorted A-Z)'],
