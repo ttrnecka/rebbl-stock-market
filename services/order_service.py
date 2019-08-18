@@ -40,7 +40,7 @@ class OrderService:
             if kwargs.get('buy_funds', None):
                 order.description = f"Buy {stock.code} ({stock.name}) for up to {kwargs['buy_funds']} credits or up to {cls.MAX_SHARE_UNITS} owned shares limit"
             elif kwargs.get('buy_shares', None):
-                order.description = f"Buy {stock.code} ({stock.name}) for up to {kwargs['buy_shares']} or up to {cls.MAX_SHARE_UNITS} owned shares limit"
+                order.description = f"Buy {stock.code} ({stock.name}) for up to {kwargs['buy_shares']} new shares or up to {cls.MAX_SHARE_UNITS} owned shares limit"
             else:
                 order.description = f"Buy {stock.code} ({stock.name}) for all available credits or up to {cls.MAX_SHARE_UNITS} owned shares limit"
         if kwargs['operation'] in ["sell"]:
