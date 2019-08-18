@@ -12,7 +12,7 @@ from web import db, app
 
 from services import SheetService, StockService, UserService, OrderService, OrderError
 from models.data_models import Stock, User, Order, Share, Transaction, TransactionError
-from misc.helpers import represents_int
+from misc.helpers import represents_int, is_number
 
 ROOT = os.path.dirname(__file__)
 logger = logging.getLogger('discord')
@@ -218,8 +218,21 @@ class DiscordCommand:
         msg += "\t<reason>: describe why you are changing the coach bank\n"
         msg += "```"
         return msg
+
     @classmethod
-    
+    def adminshare_help(cls):
+        """help message"""
+        msg = "```"
+        msg += "USAGE:\n"
+        msg += "!adminshare <stock> <amount> <user> <reason>\n"
+        msg += "\t<amount>: number of shares to add to user, if negative is used, "
+        msg += "it will be deducted from shares\n"
+        msg += "\t<user>: user discord name or its part, must be unique\n"
+        msg += "\t<reason>: describe why you are doing this\n"
+        msg += "```"
+        return msg
+
+    @classmethod
     def stock_help(cls):
         """help message"""
         msg = "```"
@@ -471,15 +484,15 @@ class DiscordCommand:
                 return
 
             # amount must be int
-            if not represents_int(self.args[1]) or int(self.args[1]) < 100000000:
-                await self.reply(["<amount> is not whole number!!!\n"])
+            if not is_number(self.args[1]) or float(self.args[1]) > 100000000:
+                await self.reply(["<amount> is not number or is too high!!!\n"])
                 return
 
             user = await self.user_unique(self.args[2])
             if user is None:
                 return
 
-            amount = int(self.args[1])
+            amount = float(self.args[1])
             reason = ' '.join(str(x) for x in self.message.content.split(" ")[3:]) + " - updated by " + str(self.message.author.name)
 
             tran = Transaction(description=reason, price=-1*amount)
@@ -490,14 +503,70 @@ class DiscordCommand:
                 return
             else:
                 msg = [
-                    f"Bank for {user.name} updated to **{user.account.amount}** credit:\n",
+                    f"Bank for {user.name} updated to **{round(user.account.amount,2)}** credit:\n",
                     f"Note: {reason}\n",
                     f"Change: {amount} credits"
                 ]
                 await self.reply(msg)
-                await self.bank_notification(f"Your bank has been updated by **{amount}** credeits - {reason}", user)
+                await self.bank_notification(f"Your bank has been updated by **{amount}** credits - {reason}", user)
                 return
-    
+        
+        if self.args[0] == '!adminshare':
+            # require username argument
+            if len(self.args) < 5:
+                await self.reply(["Not enough arguments!!!\n"])
+                await self.short_reply(self.__class__.adminshare_help())
+                return
+
+            stocks = Stock.query.filter_by(code=self.args[1]).all()
+            if not stocks:
+                await self.short_reply(f"<stock> __{self.args[1]}__ not found!!!")
+                return
+
+            if len(stocks) > 1:
+                emsg = f"<stock> __{name}__ is not **unique**!!!\n"
+                emsg += "Select one: "
+                for stock in stocks:
+                    emsg += stock.code
+                    emsg += " "
+                await self.short_reply(emsg)
+                return
+
+            stock = stocks[0]
+
+            # amount must be int
+            if not represents_int(self.args[2]) or int(self.args[2]) > OrderService.MAX_SHARE_UNITS:
+                await self.reply([f"{self.args[2]} is not whole number or is higher than {OrderService.MAX_SHARE_UNITS}!!!\n"])
+                return
+
+            user = await self.user_unique(self.args[3])
+            if user is None:
+                return
+
+            amount = int(self.args[2])
+            reason = ' '.join(str(x) for x in self.message.content.split(" ")[4:]) + " - updated by " + str(self.message.author.name)
+            tran = Transaction(description=reason, price=0)
+            try:
+                if amount > 0:
+                    done = StockService.add(user, stock, amount)
+                else:
+                    done = StockService.remove(user, stock, -1*amount)
+                    if not done:
+                        await self.short_reply(f"User {user.short_name()} does not own any shares of __{self.args[1].upper()}__!!!")
+                        return
+                user.make_transaction(tran)
+            except TransactionError as e:
+                await self.transaction_error(e)
+                return
+            else:
+                msg = [
+                    f"{stock.code} shares for {user.name} has been updated.\n",
+                    f"Note: {reason}\n",
+                    f"Change: {done} shares"
+                ]
+                await self.reply(msg)
+                await self.bank_notification(f"Your {stock.code} shares has been updated by **{done}** - {reason}", user)
+                return
             
     async def __run_stock(self):
         if(self.args[0])=="!stock":

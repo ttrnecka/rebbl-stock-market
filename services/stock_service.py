@@ -2,7 +2,7 @@
 import re
 from decimal import Decimal, getcontext
 
-from models.data_models import Stock
+from models.data_models import Stock, Share, User
 from models.base_model import db
 from .sheet_service import SheetService
 
@@ -38,4 +38,33 @@ class StockService:
             }
             db_stock.update(**stock_dict)
         db.session.commit()
-    
+
+    @classmethod
+    def add(cls, user, stock, shares):
+        share = Share.query.join(Share.user, Share.stock).filter(User.id == user.id, Stock.id == stock.id).one_or_none()
+        if share:
+            share.units = Share.units + shares
+        else:
+            share = Share()
+            share.stock = stock
+            share.user = user
+            share.units = shares
+        db.session.commit()
+        return shares
+
+    @classmethod
+    def remove(cls, user, stock, shares):
+        share = Share.query.join(Share.user, Share.stock).filter(User.id == user.id, Stock.id == stock.id).one_or_none()
+        if share:
+            units = share.units
+            left = False
+            if shares < units:
+                units = shares
+                left = True
+            
+            share.units = Share.units - units
+            if not left:
+                db.session.delete(share)
+            db.session.commit()
+            return units
+        return 0
