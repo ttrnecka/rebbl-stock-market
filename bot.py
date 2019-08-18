@@ -67,10 +67,11 @@ async def on_ready():
 
 class LongMessage:
     """Class to handle long message sending in chunks"""
-    def __init__(self, channel):
-        self.limit = 2000
+    def __init__(self, channel, block):
+        self.limit = 1994 # to allow ``` before and after
         self.parts = []
         self.channel = channel
+        self.block = block
 
     def add(self, part):
         """Adds part of long message"""
@@ -93,11 +94,13 @@ class LongMessage:
         """Transform the lines to limit sized chunks"""
         lines = self.lines()
         while True:
-            msg = ""
+            msg = "```" if self.block else ""
             if not lines:
                 break
             while lines and len(msg + lines[0]) < self.limit:
                 msg += lines.pop(0) + "\n"
+            if self.block:
+                msg += '```'
             yield msg
 
 class DiscordCommand:
@@ -261,16 +264,16 @@ class DiscordCommand:
         await self.send_message(channel, [f"{mention}: "+msg])
         return
 
-    async def send_message(self, channel, message_list):
+    async def send_message(self, channel, message_list, block=False):
         """Sends messages to channel"""
-        msg = LongMessage(channel)
+        msg = LongMessage(channel, block)
         for message in message_list:
             msg.add(message)
         await msg.send()
 
-    async def reply(self, message_list):
+    async def reply(self, message_list, block=False):
         """Replies in the same channel"""
-        await self.send_message(self.message.channel, message_list)
+        await self.send_message(self.message.channel, message_list, block=block)
 
     async def short_reply(self, message):
         """Short message not using LongMesage class"""
@@ -585,20 +588,19 @@ class DiscordCommand:
                         stocks = Stock.find_hot(self.args[2])
                 else:
                     stocks = Stock.find_all_by_name(" ".join(self.args[1:]))
-                msg = ["```"]
+                msg = []
                 msg.append(
-                    '{:5s} - {:25}: {:<12s}{:<8s}{:<8s}{:<11s}'.format("Code","Team Name","Unit Price","Change", "Shares", "Net Worth")
+                    '{:5s} - {:25} {:<8s} {:<12s}{:<8s}{:<8s}{:<11s}'.format("Code","Team Name","Division","Unit Price","Change", "Shares", "Net Worth")
                 )
-                msg.append(72*"-")
+                msg.append(80*"-")
                 for stock in stocks[0:limit]:
                     msg.append(
-                        '{:5s} - {:25}: {:10.2f}{:8.2f}{:8d}{:11.2f}'.format(stock.code, stock.name, stock.unit_price, stock.unit_price_change, stock.share_count, stock.net_worth)
+                        '{:5s} - {:25} {:<8s} {:10.2f}{:8.2f}{:8d}{:11.2f}'.format(stock.code, stock.name, stock.division, stock.unit_price, stock.unit_price_change, stock.share_count, stock.net_worth)
                     )
                 if len(stocks) > 20:
                     msg.append("...")
                     msg.append("More stock follows, narrow your search!")
-                msg.append("```")
-                await self.reply(msg)
+                await self.reply(msg, block=True)
 
     async def __run_buy(self):
         user = User.get_by_discord_id(self.message.author.id)

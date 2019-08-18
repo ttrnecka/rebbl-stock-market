@@ -99,13 +99,14 @@ class Stock(Base):
     code = db.Column(db.String(30), unique=True, nullable=False, index=True)
     race = db.Column(db.String(30), unique=False, nullable=True, index=True)
     coach = db.Column(db.String(30), unique=False, nullable=True, index=True)
+    division = db.Column(db.String(30), unique=False, nullable=True, index=True)
     unit_price = db.Column(db.Numeric(14,7), nullable=False)
     unit_price_change = db.Column(db.Numeric(14,7), nullable=False, default = 0.0)
     orders = db.relationship('Order', backref=db.backref('stock', lazy=False), cascade="save-update",lazy=True)
 
     @classmethod
     def find_all_by_name(cls,name):
-        stocks = cls.query.filter(or_(cls.name.ilike(f'%{name}%'), cls.code.ilike(f'%{name}%'), cls.race.ilike(f'%{name}%'), cls.coach.ilike(f'%{name}%'))).all()
+        stocks = cls.query.filter(or_(cls.name.ilike(f'%{name}%'), cls.code.ilike(f'%{name}%'), cls.race.ilike(f'%{name}%'), cls.coach.ilike(f'%{name}%'), cls.division.ilike(f'%{name}%'))).all()
         stocks = cls.add_share_data(stocks)
         return stocks
 

@@ -8,6 +8,7 @@ from .sheet_service import SheetService
 
 class StockService:
     non_alphanum_regexp = re.compile('[^a-zA-Z0-9]')
+    division_replace_regexp = re.compile('(Season \d+\s+- Division\s+)|(#N\/A)')
     @classmethod
     def update(cls):
         getcontext().prec = 7
@@ -35,6 +36,7 @@ class StockService:
                 'unit_price_change': change,
                 'race':stock['Race'],
                 'coach':stock['Coach'],
+                'division': f"{stock['Region']}{cls.division_replace_regexp.sub('', stock['Division'])}",
             }
             db_stock.update(**stock_dict)
         db.session.commit()
