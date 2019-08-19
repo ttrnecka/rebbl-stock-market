@@ -93,6 +93,15 @@ class User(Base):
     def find_all_by_name(cls,name):
         return cls.query.filter(cls.name.ilike(f'%{name}%')).all()
 
+class StockHistory(Base):
+    __tablename__ = 'stock_histories'
+    stock_id = db.Column(db.Integer, db.ForeignKey('stocks.id'), nullable=False)
+    unit_price = db.Column(db.Numeric(14,7), nullable=False)
+    unit_price_change = db.Column(db.Numeric(14,7), nullable=False, default = 0.0)
+    units = db.Column(db.Integer, nullable=False)
+
+    stock = db.relationship('Stock', backref=db.backref('histories', lazy=False, cascade="all, delete-orphan"), lazy=True)
+
 class Stock(Base):
     __tablename__ = 'stocks'
     name = db.Column(db.String(80), unique=True, nullable=False, index=True)
@@ -104,6 +113,15 @@ class Stock(Base):
     unit_price_change = db.Column(db.Numeric(14,7), nullable=False, default = 0.0)
     orders = db.relationship('Order', backref=db.backref('stock', lazy=False), cascade="save-update",lazy=True)
 
+    def last_history(self):
+        last_history = None if len(self.histories) == 0 else self.histories[-1]
+        return last_history
+    
+    def change_units_by(self,units):
+        last_history = self.last_history()
+        if last_history:
+            last_history.units += units
+            
     @classmethod
     def find_all_by_name(cls,name):
         stocks = cls.query.filter(or_(cls.name.ilike(f'%{name}%'), cls.code.ilike(f'%{name}%'), cls.race.ilike(f'%{name}%'), cls.coach.ilike(f'%{name}%'), cls.division.ilike(f'%{name}%'))).all()
@@ -138,7 +156,11 @@ class Stock(Base):
 
     @classmethod
     def find_by_code(cls,name):
-        return cls.query.filter(cls.code.ilike(f'{name}')).one_or_none()
+        stock = cls.query.filter(cls.code.ilike(f'{name}')).one_or_none()
+        if stock:
+            stock.share_count = sum(share.units for share in stock.shares)
+            stock.net_worth = stock.share_count * stock.unit_price
+        return stock
 
     @classmethod
     def add_share_data(cls, stocks):

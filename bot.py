@@ -242,12 +242,13 @@ class DiscordCommand:
         msg += "USAGE:\n"
         msg += "!stock <str>\n"
         msg += "\t<str>: search by team name, stock, code, race or coach name \n"
-        msg += "!stock top|bottom|hot|net <X>\n"
+        msg += "!stock top|bottom|hot|net|detail <X>\n"
         msg += "\ttop: top priced stock"
         msg += "\tbottom: bottom priced stock"
         msg += "\thot: stock with most bought shares"
         msg += "\tnet: stock with most net worth"
-        msg += "\t<x>: find X top or bottom stocks"
+        msg += "\tdetail: detailed stock info"
+        msg += "\t<x>: find X top or bottom stocks, or X is stock code if detail is used"
         msg += "```"
         return msg
 
@@ -590,11 +591,12 @@ class DiscordCommand:
             
     async def __run_stock(self):
         if(self.args[0])=="!stock":
+            detail = False
             if len(self.args) < 2:
                 await self.reply(["Incorrect number of arguments!!!", self.__class__.stock_help()])
             else:
                 limit = 24
-                if self.args[1] in ["top", "bottom", "hot", "net"] and len(self.args) ==3 and represents_int(self.args[2]) and int(self.args[2]) > 0 and int(self.args[2]) <= limit:
+                if self.args[1] in ["top", "bottom", "hot", "net"] and len(self.args) == 3 and represents_int(self.args[2]) and int(self.args[2]) > 0 and int(self.args[2]) <= limit:
                     if self.args[1] == "top":
                         stocks = Stock.find_top(self.args[2])
                     elif self.args[1] == "bottom":
@@ -603,6 +605,17 @@ class DiscordCommand:
                         stocks = Stock.find_net(self.args[2])
                     else:
                         stocks = Stock.find_hot(self.args[2])
+                elif self.args[1] == "detail" and len(self.args) == 3:
+                    detail = True
+                    try:
+                        stock = Stock.find_by_code(self.args[2])
+                        if not stock:
+                            await self.reply([f"{self.args[2]} is not unique stock code"])
+                            return
+                        stocks = [stock]
+                    except MultipleResultsFound as exc:
+                        await self.reply([f"{self.args[2]} is not unique stock code"])
+                        return
                 else:
                     stocks = Stock.find_all_by_name(" ".join(self.args[1:]))
                 msg = []
@@ -614,6 +627,28 @@ class DiscordCommand:
                     msg.append(
                         '{:5s} - {:25} {:<8s} {:10.2f}{:8.2f}{:8d}{:11.2f}'.format(stock.code, stock.name, stock.division, stock.unit_price, stock.unit_price_change, stock.share_count, stock.net_worth)
                     )
+                if detail:
+                    # only 1 stock
+                    msg.append(" ")
+                    msg.append("= Owners =")
+                    msg.append(
+                        '{:15s}: {:>8s}{:>11s}'.format("Name","Shares","Net Worth")
+                    )
+                    for share in stocks[0].shares:
+                        msg.append(
+                            '{:15s}: {:8d}{:11.2f}'.format(share.user.short_name(), share.units, round(share.units*share.stock.unit_price,2))
+                        )
+
+                    msg.append(" ")
+                    msg.append("= History =")
+                    msg.append(
+                        '{:20s}: {:<12s}{:<8s}{:<8s}{:<11s}'.format("Date","Unit Price","Change","Shares", "Net Worth")
+                    )
+                    for sh in stocks[0].histories:
+                        msg.append(
+                            '{:20s}: {:10.2f}{:8.2f}{:8d}{:11.2f}'.format(str(sh.date_created), sh.unit_price, sh.unit_price_change, sh.units, round(sh.units*sh.unit_price,2))
+                        )
+                        
                 if len(stocks) > 20:
                     msg.append("...")
                     msg.append("More stock follows, narrow your search!")

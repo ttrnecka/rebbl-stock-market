@@ -2,7 +2,7 @@
 import re
 from decimal import Decimal, getcontext
 
-from models.data_models import Stock, Share, User
+from models.data_models import Stock, Share, User, StockHistory
 from models.base_model import db
 from .sheet_service import SheetService
 
@@ -18,6 +18,7 @@ class StockService:
                 continue
             st = stock['Team(Sorted A-Z)']
             db_stock = Stock.query.filter_by(name=st).one_or_none()
+            new_history = True
             if not db_stock:
                 db_stock = Stock()
                 db_stock.unit_price = Decimal(stock['Current Value'])
@@ -26,6 +27,7 @@ class StockService:
             else:
                 if round(db_stock.unit_price,2) == round(Decimal(stock['Current Value']),2):
                     change = db_stock.unit_price_change
+                    new_history = False
                 else:
                     change = Decimal(stock['Current Value']) - Decimal(db_stock.unit_price)
 
@@ -39,6 +41,14 @@ class StockService:
                 'division': f"{stock['Region']}{cls.division_replace_regexp.sub('', stock['Division'])}",
             }
             db_stock.update(**stock_dict)
+
+            if new_history:
+                last_history = db_stock.last_history()
+                if last_history:
+                    sh = StockHistory(unit_price=db_stock.unit_price, unit_price_change=db_stock.unit_price_change, units=last_history.units)
+                else:
+                    sh = StockHistory(unit_price=db_stock.unit_price, unit_price_change=0, units=0)
+                db_stock.histories.append(sh)
         db.session.commit()
 
     @classmethod

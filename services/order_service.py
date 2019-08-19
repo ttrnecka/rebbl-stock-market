@@ -1,6 +1,6 @@
 """OrderService helpers"""
 
-from models.data_models import Stock, Order, User, Share, Transaction, TransactionError
+from models.data_models import Stock, Order, User, Share, Transaction, TransactionError, StockHistory
 from models.base_model import db
 
 class OrderError(Exception):
@@ -67,6 +67,7 @@ class OrderService:
     
     @classmethod
     def process(cls, order):
+        stock_modifier = 1
         if order.operation == "buy":
             # sets the order stock price at the time of processing
             order.share_price = order.stock.unit_price
@@ -111,6 +112,7 @@ class OrderService:
             order.processed = True
             
         if order.operation == "sell":
+            stock_modifier = -1
             # sets the order stock price at the time of processing
             order.share_price = order.stock.unit_price
             share = Share.query.join(Share.user, Share.stock).filter(User.id == order.user.id, Stock.id == order.stock.id).one_or_none()
@@ -144,5 +146,7 @@ class OrderService:
             except TransactionError as exc:
                 order.success = False
                 order.result = str(exc)
+
+            order.stock.change_units_by(stock_modifier*order.final_shares)
         db.session.commit()
         return order
