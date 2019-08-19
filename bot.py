@@ -254,14 +254,24 @@ class DiscordCommand:
     # must me under 2000 chars
     async def trade_notification(self, msg, user):
         """Notifies coach about bank change"""
+
+        channel = discord.utils.get(self.client.get_all_channels(), name='trade-notifications')
+        await self.send_message(channel, [f"{self.user_mention(user)}: "+msg])
+        return
+
+    def user_mention(self, user):
         member = discord.utils.get(self.message.guild.members, id=user.disc_id)
         if member is None:
             mention = user.name
         else:
             mention = member.mention
+        return  mention
 
+    # must me under 2000 chars
+    async def trade_message(self, msg):
+        """Notifies coach about bank change"""
         channel = discord.utils.get(self.client.get_all_channels(), name='trade-notifications')
-        await self.send_message(channel, [f"{mention}: "+msg])
+        await self.send_message(channel, msg)
         return
 
     async def send_message(self, channel, message_list, block=False):
@@ -436,6 +446,17 @@ class DiscordCommand:
             await self.short_reply(msg)
 
         if self.args[0] == "!admintrade":
+
+            async def chunk_orders(orders):
+                group_count = 10
+                order_chunks = [orders[i:i+group_count] for i in range(0, len(orders), group_count)]
+                for chunk in order_chunks:
+                    msg = []
+                    for order in chunk:
+                        order = OrderService.process(order)
+                        msg.append(f"{self.user_mention(order.user)}: {order.result}")
+                    await self.trade_message(msg)
+            
             await self.short_reply("Updating DB...")
             StockService.update()
             await self.short_reply("Done")
@@ -445,16 +466,12 @@ class DiscordCommand:
 
             await self.short_reply("Processing SELL orders...")
             orders = Order.query.order_by(asc(Order.date_created)).filter(Order.processed == False, Order.operation == "sell").all()
-            for order in orders:
-                order = OrderService.process(order)
-                await self.trade_notification(order.result, order.user)
+            await chunk_orders(orders)
             await self.short_reply("Done")
 
             await self.short_reply("Processing BUY orders...")
             orders = Order.query.order_by(asc(Order.date_created)).filter(Order.processed == False, Order.operation == "buy").all()
-            for order in orders:
-                order = OrderService.process(order)
-                await self.trade_notification(order.result, order.user)
+            await chunk_orders(orders)
             await self.short_reply("Done")
             
             await self.short_reply("Opening market...")
