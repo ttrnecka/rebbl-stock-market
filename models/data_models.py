@@ -155,6 +155,20 @@ class Stock(Base):
         return sort[0:int(limit)]
 
     @classmethod
+    def find_gain(cls,limit=10):
+        stocks =  cls.query.all()
+        stocks = cls.add_share_data(stocks)
+        sort = sorted(stocks,key=lambda x: x.unit_price_change, reverse=True)
+        return sort[0:int(limit)]
+
+    @classmethod
+    def find_loss(cls,limit=10):
+        stocks =  cls.query.all()
+        stocks = cls.add_share_data(stocks)
+        sort = sorted(stocks,key=lambda x: x.unit_price_change, reverse=False)
+        return sort[0:int(limit)]
+
+    @classmethod
     def find_by_code(cls,name):
         stock = cls.query.filter(cls.code.ilike(f'{name}')).one_or_none()
         if stock:
