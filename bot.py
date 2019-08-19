@@ -328,16 +328,16 @@ class DiscordCommand:
             return None
         return users[0]
 
-    def list_message(self,user):
-        msg = [
+    def list_messages(self,user):
+        msg1 = [
             f"**User:** {user.short_name()}\n",
             f"**Bank:** {round(user.account.amount, 2)} credits\n",
             f"**Shares:**",
         ]
-
+    
         total_value = 0
+        msg2 = []
         if user.shares:
-            msg.append("```")
             for share in user.shares:
                 gain = round(share.stock.unit_price_change, 2)
                 if gain > 0:
@@ -346,32 +346,32 @@ class DiscordCommand:
                     gain = "0.00"
                 else:
                     gain = str(gain)
-                msg.append(
+                msg2.append(
                     '{:5s} - {:25s}: {:3d} x {:7.2f}, Change: {:>7s}'.format(share.stock.code, share.stock.name, share.units, share.stock.unit_price, gain)
                 )
                 total_value += share.units * share.stock.unit_price
         
-            msg.append("```") 
-            msg.append("**Total Shares Value:** {:9.2f}".format(total_value))
-            msg.append("**Balance:** {:9.2f}".format(total_value+user.account.amount))
+        msg3 = []
+        msg3.append("**Total Shares Value:** {:9.2f}".format(total_value))
+        msg3.append("**Balance:** {:9.2f}".format(total_value+user.account.amount))
 
-        msg.append("")
-        msg.append(f"**Outstanding Orders:**")
-        msg.append(f"*Sell:*")
+        msg3.append("")
+        msg3.append(f"**Outstanding Orders:**")
+        msg3.append(f"*Sell:*")
 
         for order in user.orders:
             if not order.processed and order.operation=="sell":
-                msg.append(f"{order.id}. {order.description}")
-        msg.append(" ")
+                msg3.append(f"{order.id}. {order.description}")
+        msg3.append(" ")
 
-        msg.append(f"*Buy:*")
+        msg3.append(f"*Buy:*")
 
         for order in user.orders:
             if not order.processed and order.operation=="buy":
-                msg.append(f"{order.id}. {order.description}")
-        msg.append(" ")
+                msg3.append(f"{order.id}. {order.description}")
+        msg3.append(" ")
 
-        return msg
+        return msg1, msg2, msg3
 
     # commands
     async def __run_help(self):
@@ -400,11 +400,15 @@ class DiscordCommand:
             )
             return
 
-        msg = self.list_message(user)
+        msg1, msg2, msg3 = self.list_messages(user)
         if user.short_name() in ["MajorStockBot"]:
-            await self.reply(msg)
+            await self.reply(msg1)
+            await self.reply(msg2, block=True)
+            await self.reply(msg3)
         else:
-            await self.send_message(self.message.author, msg)
+            await self.send_message(self.message.author, msg1)
+            await self.send_message(self.message.author, msg2, block=True)
+            await self.send_message(self.message.author, msg3)
             await self.short_reply("Info sent to PM")
 
     async def __run_admin(self):
@@ -490,12 +494,13 @@ class DiscordCommand:
 
             if not users:
                 msg.append("No coaches found")
+                await self.reply(msg)
 
             for user in users:
-                for messg in self.list_message(user):
-                    msg.append(messg)
-
-            await self.reply(msg)
+                msg1, msg2, msg3 = self.list_messages(user)
+                await self.reply(msg1)
+                await self.reply(msg2, block=True)
+                await self.reply(msg3)
         
         if self.args[0] == '!adminbank':
             # require username argument
