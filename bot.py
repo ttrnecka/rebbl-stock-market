@@ -664,6 +664,9 @@ class DiscordCommand:
                         homeChange = "N/A" if not homeStock else homeStock[0].unit_price_change
                         awayChange = "N/A" if not awayStock else awayStock[0].unit_price_change
 
+                        homeRace = "N/A" if not homeStock else homeStock[0].race
+                        awayRace = "N/A" if not awayStock else awayStock[0].race
+
                         msg.append(" ")
                         msg.append("[Next Match]")
                         msg.append(
@@ -675,6 +678,9 @@ class DiscordCommand:
                         )
                         msg.append(
                             '{:>38s}  |  {:<37s}'.format(match['homeTeamName'],match['awayTeamName'])
+                        )
+                        msg.append(
+                            '{:>38s}  |  {:<37s}'.format(homeRace, awayRace)
                         )
                         msg.append(
                             '{:>38.2f}  |  {:<34.2f}'.format(homePrice,awayPrice)
