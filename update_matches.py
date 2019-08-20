@@ -39,19 +39,14 @@ def main(argv):
 
     agent = bb2.REBBL_API()
     
-    leagues = [
-        "REBBL - REL",
-        "REBBL - Big O",
-        "REBBL - GMan",
-        #"ReBBL Playoffs",
-        "GMAN Rampup",
-        "REL RAMPUP",
-    ]
-    season = "season 12"
-    rounds = [
-        1#,2
-    ]
-    STATS_FILE = "matches.json"
+    
+    leagues = app.config['LEAGUES']
+    season = app.config['SEASON']
+    rounds = app.config['ROUNDS_COLLECT']
+    rounds_export = app.config['ROUNDS_EXPORT']
+
+    STATS_FILE = app.config['MATCH_FILE']
+    
     header = {
         "division":"division",
         "round":"round",
@@ -81,23 +76,23 @@ def main(argv):
         raise exc
 
     logger.info("Matches colleted")
-    # filter out unplayed
-    matches = [match for match in matches if match['match_uuid']]
+    # filter out unplayed and not in export rounds
+    matches_to_export = [match for match in matches if match['match_uuid'] and match['round'] in rounds_export]
     #sort by match uuid
-    matches = sorted(matches, key=lambda x: x['match_uuid'])
+    matches_to_export = sorted(matches_to_export, key=lambda x: x['match_uuid'])
 
-    #strip tema names
-    for match in matches:
+    #strip team names
+    for match in matches_to_export:
         match['homeTeamName'] = match['homeTeamName'].strip()
         match['awayTeamName'] = match['awayTeamName'].strip()
 
     #insert header
-    matches.insert(0, header)
+    matches_to_export.insert(0, header)
     # turn dict to list
-    matches = [list(match.values()) for match in matches]
+    matches_to_export = [list(match.values()) for match in matches_to_export]
 
     try:
-        SheetService.update_matches(matches)
+        SheetService.update_matches(matches_to_export)
     except Exception as exc:
         logger.error(exc)
         AdminNotificationService.notify(str(exc))

@@ -10,3 +10,4 @@ from .user_service import UserService
 from .order_service import OrderService, OrderError
 from .notification_service import AdminNotificationService
 from .web_hook_service import WebHook
+from .team_service import TeamService

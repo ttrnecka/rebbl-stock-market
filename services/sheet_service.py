@@ -13,12 +13,12 @@ CREDS = ServiceAccountCredentials.from_json_keyfile_name(
 
 class SheetService:
     """Namespace class"""
-    #SPREADSHEET_ID = "1asnfGr4M1ec2IW46nv4md5glT2-Eq0j60iOuYsVsVeE"
     #season 12
     SPREADSHEET_ID="1UuHysgRw2t1PzlEnqM_8QDACm0eX4uDe8LtO9scIhGQ"
     # dev spreadsheet below
-    #SPREADSHEET_ID = "1asnfGr4M1ec2IW46nv4md5glT2-Eq0j60iOuYsVsVeE"
+    #SPREADSHEET_ID = "1-f4tu9Hs0OXlnoBrwLRktmddcy_uKHGZQzg9ZtXdGFg"
     MAIN_SHEET="Current Team Values"
+    IMPORT_SHEET="Bot Import"
 
     _stocks = None
 
@@ -36,7 +36,7 @@ class SheetService:
         client = gspread.authorize(CREDS)
         sheet = client.open_by_key(cls.SPREADSHEET_ID)
         sheet.values_update(
-            'Bot Import!A1', 
+            f'{cls.IMPORT_SHEET}!A1', 
             params={'valueInputOption': 'RAW'}, 
             body={'values': matches}
         )

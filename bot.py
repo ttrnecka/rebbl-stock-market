@@ -10,7 +10,7 @@ from sqlalchemy import func, asc
 from sqlalchemy.orm.exc import MultipleResultsFound
 from web import db, app
 
-from services import SheetService, StockService, UserService, OrderService, OrderError
+from services import SheetService, StockService, UserService, OrderService, OrderError, TeamService
 from models.data_models import Stock, User, Order, Share, Transaction, TransactionError
 from misc.helpers import represents_int, is_number
 
@@ -94,7 +94,7 @@ class LongMessage:
         """Transform the lines to limit sized chunks"""
         lines = self.lines()
         while True:
-            msg = "```" if self.block else ""
+            msg = "```asciidoc\n" if self.block else ""
             if not lines:
                 break
             while lines and len(msg + lines[0]) < self.limit:
@@ -653,22 +653,56 @@ class DiscordCommand:
                         '{:5s} - {:25} {:<8s} {:10.2f}{:8.2f}{:8d}{:11.2f}'.format(stock.code, stock.name, stock.division, stock.unit_price, stock.unit_price_change, stock.share_count, stock.net_worth)
                     )
                 if detail:
+                    match = TeamService.get_next_game(stocks[0].name)
+                    if match:
+                        homeStock = Stock.find_all_by_name(match['homeTeamName'].strip())
+                        awayStock = Stock.find_all_by_name(match['awayTeamName'].strip())
+
+                        homePrice = "N/A" if not homeStock else homeStock[0].unit_price
+                        awayPrice = "N/A" if not awayStock else awayStock[0].unit_price
+
+                        homeChange = "N/A" if not homeStock else homeStock[0].unit_price_change
+                        awayChange = "N/A" if not awayStock else awayStock[0].unit_price_change
+
+                        msg.append(" ")
+                        msg.append("[Next Match]")
+                        msg.append(
+                            '{:>38s}  |  {:<37s}'.format("Home","Away")
+                        )
+                        msg.append(80*"-")
+                        msg.append(
+                            '{:>38s}  |  {:<37s}'.format(match['homeCoachName'],match['awayCoachName'])
+                        )
+                        msg.append(
+                            '{:>38s}  |  {:<37s}'.format(match['homeTeamName'],match['awayTeamName'])
+                        )
+                        msg.append(
+                            '{:>38.2f}  |  {:<34.2f}'.format(homePrice,awayPrice)
+                        )
+                        msg.append(
+                            '{:>38.2f}  |  {:<34.2f}'.format(homeChange,awayChange)
+                        )
+                    
                     # only 1 stock
                     msg.append(" ")
-                    msg.append("= Owners =")
+                    msg.append("[Owners]")
+                    msg.append(" ")
                     msg.append(
                         '{:15s}: {:>8s}{:>11s}'.format("Name","Shares","Net Worth")
                     )
+                    msg.append(80*"-")
                     for share in stocks[0].shares:
                         msg.append(
                             '{:15s}: {:8d}{:11.2f}'.format(share.user.short_name(), share.units, round(share.units*share.stock.unit_price,2))
                         )
 
                     msg.append(" ")
-                    msg.append("= History =")
+                    msg.append("[History]")
+                    msg.append(" ")
                     msg.append(
                         '{:20s}: {:<12s}{:<8s}{:<8s}{:<11s}'.format("Date","Unit Price","Change","Shares", "Net Worth")
                     )
+                    msg.append(80*"-")
                     for sh in stocks[0].histories:
                         msg.append(
                             '{:20s}: {:10.2f}{:8.2f}{:8d}{:11.2f}'.format(str(sh.date_created), sh.unit_price, sh.unit_price_change, sh.units, round(sh.units*sh.unit_price,2))
