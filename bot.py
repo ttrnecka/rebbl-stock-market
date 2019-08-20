@@ -658,11 +658,11 @@ class DiscordCommand:
                         homeStock = Stock.find_all_by_name(match['homeTeamName'].strip())
                         awayStock = Stock.find_all_by_name(match['awayTeamName'].strip())
 
-                        homePrice = "N/A" if not homeStock else homeStock[0].unit_price
-                        awayPrice = "N/A" if not awayStock else awayStock[0].unit_price
+                        homePrice = 0 if not homeStock else homeStock[0].unit_price
+                        awayPrice = 0 if not awayStock else awayStock[0].unit_price
 
-                        homeChange = "N/A" if not homeStock else homeStock[0].unit_price_change
-                        awayChange = "N/A" if not awayStock else awayStock[0].unit_price_change
+                        homeChange = 0 if not homeStock else homeStock[0].unit_price_change
+                        awayChange = 0 if not awayStock else awayStock[0].unit_price_change
 
                         homeRace = "N/A" if not homeStock else homeStock[0].race
                         awayRace = "N/A" if not awayStock else awayStock[0].race
