@@ -653,7 +653,8 @@ class DiscordCommand:
                         '{:5s} - {:25} {:<8s} {:10.2f}{:8.2f}{:8d}{:11.2f}'.format(stock.code, stock.name, stock.division, stock.unit_price, stock.unit_price_change, stock.share_count, stock.net_worth)
                     )
                 if detail:
-                    match = TeamService.get_next_game(stocks[0].name)
+                    round_n = app.config['ROUNDS_COLLECT'][-1]
+                    match = TeamService.get_game(stocks[0].name, round_n=round_n)
                     if match:
                         homeStock = Stock.find_all_by_name(match['homeTeamName'].strip())
                         awayStock = Stock.find_all_by_name(match['awayTeamName'].strip())
@@ -666,9 +667,8 @@ class DiscordCommand:
 
                         homeRace = "N/A" if not homeStock else homeStock[0].race
                         awayRace = "N/A" if not awayStock else awayStock[0].race
-
                         msg.append(" ")
-                        msg.append("[Next Match]")
+                        msg.append(f"[Round {round_n} Match]")
                         msg.append(
                             '{:>38s}  |  {:<37s}'.format("Home","Away")
                         )
