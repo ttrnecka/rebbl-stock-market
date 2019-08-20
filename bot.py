@@ -694,12 +694,12 @@ class DiscordCommand:
                     msg.append("[Owners]")
                     msg.append(" ")
                     msg.append(
-                        '{:15s}: {:>8s}{:>11s}'.format("Name","Shares","Net Worth")
+                        '{:32s}: {:>8s}{:>11s}'.format("Name","Shares","Net Worth")
                     )
                     msg.append(80*"-")
                     for share in stocks[0].shares:
                         msg.append(
-                            '{:15s}: {:8d}{:11.2f}'.format(share.user.short_name(), share.units, round(share.units*share.stock.unit_price,2))
+                            '{:32s}: {:8d}{:11.2f}'.format(share.user.short_name(), share.units, round(share.units*share.stock.unit_price,2))
                         )
 
                     msg.append(" ")
