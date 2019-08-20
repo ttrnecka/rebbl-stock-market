@@ -604,10 +604,10 @@ class DiscordCommand:
                 msg = [
                     f"{stock.code} shares for {user.name} has been updated.\n",
                     f"Note: {reason}\n",
-                    f"Change: {done} shares"
+                    f"Change: {amount} shares"
                 ]
                 await self.reply(msg)
-                await self.bank_notification(f"Your {stock.code} shares has been updated by **{done}** - {reason}", user)
+                await self.bank_notification(f"Your {stock.code} shares has been updated by **{amount}** - {reason}", user)
                 return
             
     async def __run_stock(self):
