@@ -6,15 +6,15 @@ from .sheet_service import SheetService
 
 class TeamService:
     @classmethod
-    def get_next_game(cls, team_name):
+    def get_game(cls, team_name, round_n=1):
         team_matches = cls.get_team_matches(team_name)
 
         #sort by round
-        team_matches = sorted(team_matches, key=lambda t: t['round'])
+        #team_matches = sorted(team_matches, key=lambda t: t['round'])
 
         # return first unplayed match
         for match in team_matches:
-            if not match['match_uuid']:
+            if match['round'] == round_n:
                 return match
 
         return  None
