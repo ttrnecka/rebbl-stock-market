@@ -27,3 +27,4 @@ class Notificator:
             notificator(msg)
 
 AdminNotificationService = Notificator("admin")
+StockNotificationService = Notificator("stock")

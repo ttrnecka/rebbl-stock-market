@@ -1,16 +1,14 @@
-Weekly user stock change
-
+Change picture
 Stock gain since the purchase
-Last week gain loss for coach
-buy stock my amount
-search by div
-top stock by shares
-display stock detail (how many shares, how many buys/sells since last week)
-changes/pct
-top buyer/sellers that week
-
+top gain/loss for the week
 
 DONE
+Stock change to channel
+Bye week buy filter
+display stock detail (how many shares, how many buys/sells since last week)
+search by div
+top stock by shares
+buy stock my amount
 rder process notification - number format to 2 decimals
 Price change since last trade
 share limit

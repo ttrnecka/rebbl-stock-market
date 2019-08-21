@@ -1,5 +1,4 @@
 from sqlalchemy import or_, UniqueConstraint, desc
-from sqlalchemy import event
 from .base_model import db, Base, QueryWithSoftDelete
 import logging
 import json
@@ -238,13 +237,28 @@ class Order(Base):
     share_price = db.Column(db.Numeric(14,7), nullable=True)
     stock_id = db.Column(db.Integer, db.ForeignKey('stocks.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    description = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String(255), nullable=False, default="")
     processed = db.Column(db.Boolean, default=False, nullable=False)
     result = db.Column(db.String(255), nullable=True)
     success = db.Column(db.Boolean, default=False, nullable=False)
 
     transaction = db.relationship('Transaction',uselist=False, backref=db.backref('order', lazy=True), cascade="all, delete-orphan",lazy=False)
 
+    def desc(self):
+        app = db.get_app()
+        if self.operation in ["buy"]:
+            if self.buy_funds:
+                desc = f"Buy {self.stock.code} ({self.stock.name}) for up to {round(self.buy_funds,0)} {app.config['CREDITS']} or up to {app.config['MAX_SHARE_UNITS']} owned shares limit"
+            elif self.buy_shares:
+                desc = f"Buy {self.stock.code} ({self.stock.name}) for up to {self.buy_shares} new shares or up to {app.config['MAX_SHARE_UNITS']} owned shares limit"
+            else:
+                desc = f"Buy {self.stock.code} ({self.stock.name}) for all available {app.config['CREDITS']} or up to {app.config['MAX_SHARE_UNITS']} owned shares limit"
+        if self.operation in ["sell"]:
+            if self.sell_shares:
+                desc = f"Sell up to {self.sell_shares} units of {self.stock.code} ({self.stock.name})"
+            else:
+                desc = f"Sell all units of {self.stock.code} ({self.stock.name})"
+        return desc
 class Account(Base):
     __tablename__ = 'accounts'
     INIT_CASH = 30000.0
@@ -275,24 +289,3 @@ class Transaction(Base):
 
 class TransactionError(Exception):
     pass
-
-
-
-
-@event.listens_for(db.session,'before_flush')
-#@event.listens_for(Share,'before_update')
-def update_balance_history(session, flush_context, isinstances):
-#    """If stock price changes, update balance history of all users owning it"""
-    for instance in session.dirty:
-        if not isinstance(instance, Stock):
-            continue
-        state = db.inspect(instance)
-
-        if isinstance(instance, Stock):
-            history = state.attrs.unit_price.load_history()
-
-        # update all balances for the users owning this Stock
-        if history.has_changes():
-            if isinstance(instance, Stock):
-                for share in instance.shares:
-                    share.user.new_balance_history()

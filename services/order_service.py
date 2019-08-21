@@ -7,7 +7,6 @@ class OrderError(Exception):
     pass
 
 class OrderService:
-    MAX_SHARE_UNITS = 10
     __open = True
 
     @classmethod
@@ -24,30 +23,18 @@ class OrderService:
     
     @classmethod
     def create(cls, user, stock, **kwargs):
+        app = db.get_app()
         if not cls.is_open():
             raise OrderError("Market is closed!!!")
         
         if kwargs['operation'] in ["buy"]:
             share = Share.query.join(Share.user, Share.stock).filter(User.id == user.id, Stock.id == stock.id).one_or_none()
-            if share and share.units >= cls.MAX_SHARE_UNITS:
-                raise OrderError(f"You already own {cls.MAX_SHARE_UNITS} shares of {stock.code}")
+            if share and share.units >= app.config['MAX_SHARE_UNITS']:
+                raise OrderError(f"You already own {app.config['MAX_SHARE_UNITS']} shares of {stock.code}")
 
         order = Order(**kwargs)
         user.orders.append(order)
         order.stock = stock
-
-        if kwargs['operation'] in ["buy"]:
-            if kwargs.get('buy_funds', None):
-                order.description = f"Buy {stock.code} ({stock.name}) for up to {kwargs['buy_funds']} credits or up to {cls.MAX_SHARE_UNITS} owned shares limit"
-            elif kwargs.get('buy_shares', None):
-                order.description = f"Buy {stock.code} ({stock.name}) for up to {kwargs['buy_shares']} new shares or up to {cls.MAX_SHARE_UNITS} owned shares limit"
-            else:
-                order.description = f"Buy {stock.code} ({stock.name}) for all available credits or up to {cls.MAX_SHARE_UNITS} owned shares limit"
-        if kwargs['operation'] in ["sell"]:
-            if kwargs.get('sell_shares', None):
-                order.description = f"Sell up to {kwargs['sell_shares']} units of {stock.code} ({stock.name})"
-            else:
-                order.description = f"Sell all units of {stock.code} ({stock.name})"
         db.session.commit()
         return order
 
@@ -68,6 +55,7 @@ class OrderService:
     @classmethod
     def process(cls, order):
         stock_modifier = 1
+        app = db.get_app()
         if order.operation == "buy":
             # sets the order stock price at the time of processing
             order.share_price = order.stock.unit_price
@@ -82,7 +70,7 @@ class OrderService:
                 else:
                     shares = funds // order.stock.unit_price
 
-                possible_shares = cls.MAX_SHARE_UNITS
+                possible_shares = app.config['MAX_SHARE_UNITS']
                 if share:
                     possible_shares -= share.units
                 
@@ -101,11 +89,11 @@ class OrderService:
                         share.units = shares
 
                     order.success = True
-                    order.result = f"Bought {order.final_shares} {order.stock.code} share(s) for {round(order.final_price, 2)} credits"
+                    order.result = f"Bought {order.final_shares} {order.stock.code} share(s) for {round(order.final_price, 2)} {app.config['CREDITS']}"
                     tran = Transaction(order=order, price=order.final_price, description=order.result)
                 else:
                     order.success = False
-                    order.result = f"Not enough funds to buy any shares or {cls.MAX_SHARE_UNITS} share limit reached"
+                    order.result = f"Not enough funds to buy any shares or {app.config['MAX_SHARE_UNITS']} share limit reached"
             else:
                 order.success = False
                 order.result = "Cannot buy stock with 0 price"
@@ -133,7 +121,7 @@ class OrderService:
                     db.session.delete(share)
 
                 order.success = True
-                order.result = f"Sold {order.final_shares} {order.stock.code} share(s) for {round(order.final_price, 2)} credits"
+                order.result = f"Sold {order.final_shares} {order.stock.code} share(s) for {round(order.final_price, 2)} {app.config['CREDITS']}"
                 tran = Transaction(order=order, price=-1*order.final_price, description=order.result)
             else:
                 order.success = False

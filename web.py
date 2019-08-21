@@ -8,7 +8,7 @@ from flask_migrate import Migrate
 from sqlalchemy.orm import raiseload
 
 from models.base_model import db
-from services import AdminNotificationService, WebHook
+from services import AdminNotificationService, WebHook, StockNotificationService
 
 os.environ["YOURAPPLICATION_SETTINGS"] = "config/config.py"
 ROOT = os.path.dirname(__file__)
@@ -23,6 +23,9 @@ def create_app():
     
     AdminNotificationService.register_notifier(
         WebHook(fapp.config['DISCORD_WEBHOOK_ADMIN']).send
+    )
+    StockNotificationService.register_notifier(
+        WebHook(fapp.config['DISCORD_WEBHOOK_STOCK']).send
     )
 
     return fapp

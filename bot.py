@@ -169,11 +169,11 @@ class DiscordCommand:
         msg = "```"
         msg += "Creates order to BUY Stock\n"
         msg += "USAGE:\n"
-        msg += "!buy <stock_code> [credit|shares]\n"
+        msg += f"!buy <stock_code> [{app.config['CREDITS']}|shares]\n"
         msg += "\t<stock_code>: code of stock from !stock\n"
-        msg += f"\t[credit]: optional, if provided and more than {OrderService.MAX_SHARE_UNITS}\n"
+        msg += f"\t[{app.config['CREDITS']}]: optional, if provided and more than {app.config['MAX_SHARE_UNITS']}\n"
         msg += "\tspend up to the amout for the stock, if ommited, buy as much as possible\n"
-        msg += f"\t[shares]: optional, if provided and less or equal than {OrderService.MAX_SHARE_UNITS}\n"
+        msg += f"\t[shares]: optional, if provided and less or equal than {app.config['MAX_SHARE_UNITS']}\n"
         msg += "\tbuy up to amount of shares of the stock\n"
         msg += "```"
         return msg
@@ -229,7 +229,7 @@ class DiscordCommand:
         msg = "```"
         msg += "USAGE:\n"
         msg += "!adminbank <amount> <user> <reason>\n"
-        msg += "\t<amount>: number of credits to add to bank, if negative is used, "
+        msg += f"\t<amount>: number of {app.config['CREDITS']} to add to bank, if negative is used, "
         msg += "it will be deducted from bank\n"
         msg += "\t<user>: user discord name or its part, must be unique\n"
         msg += "\t<reason>: describe why you are changing the coach bank\n"
@@ -378,12 +378,12 @@ class DiscordCommand:
 
         for order in user.orders:
             if not order.processed and order.operation=="sell":
-                msg3.append(f"{order.id}. {order.description}")
+                msg3.append(f"{order.id}. {order.desc()}")
         msg3.append(" ")
 
         for order in user.orders:
             if not order.processed and order.operation=="buy":
-                msg3.append(f"{order.id}. {order.description}")
+                msg3.append(f"{order.id}. {order.desc()}")
         msg3.append(" ")
 
         msg3.append(" ")
@@ -393,7 +393,7 @@ class DiscordCommand:
         msg4.append(
             '{:20s}: {:>8s}{:>13s}'.format("Date","Shares","Balance")
         )
-        for history in user.balance_histories:
+        for history in sorted(user.balance_histories, key=lambda x: x.date_created, reverse=True)[:10]:
             msg4.append(
                 '{:20s}: {:>8d}{:>13.2f}'.format(str(history.date_created), history.shares, history.balance)
             )
@@ -411,7 +411,7 @@ class DiscordCommand:
             user = UserService.new_coach(self.message.author, self.message.author.id)
             msg = [
                 f"**{self.message.author.mention}** account created\n",
-                f"**Bank:** {round(user.account.amount, 2)} credits",
+                f"**Bank:** {round(user.account.amount, 2)} {app.config['CREDITS']}",
             ]
             await self.reply(msg)
 
@@ -558,12 +558,12 @@ class DiscordCommand:
                 return
             else:
                 msg = [
-                    f"Bank for {user.name} updated to **{round(user.account.amount,2)}** credit:\n",
+                    f"Bank for {user.name} updated to **{round(user.account.amount,2)}** {app.config['CREDITS']}:\n",
                     f"Note: {reason}\n",
-                    f"Change: {amount} credits"
+                    f"Change: {amount} {app.config['CREDITS']}"
                 ]
                 await self.reply(msg)
-                await self.bank_notification(f"Your bank has been updated by **{amount}** credits - {reason}", user)
+                await self.bank_notification(f"Your bank has been updated by **{amount}** {app.config['CREDITS']} - {reason}", user)
                 return
         
         if self.args[0] == '!adminshare':
@@ -590,8 +590,8 @@ class DiscordCommand:
             stock = stocks[0]
 
             # amount must be int
-            if not represents_int(self.args[2]) or int(self.args[2]) > OrderService.MAX_SHARE_UNITS:
-                await self.reply([f"{self.args[2]} is not whole number or is higher than {OrderService.MAX_SHARE_UNITS}!!!\n"])
+            if not represents_int(self.args[2]) or int(self.args[2]) > app.config['MAX_SHARE_UNITS']:
+                await self.reply([f"{self.args[2]} is not whole number or is higher than {app.config['MAX_SHARE_UNITS']}!!!\n"])
                 return
 
             user = await self.user_unique(self.args[3])
@@ -763,14 +763,21 @@ class DiscordCommand:
                 await self.reply([f"**{self.args[2]}** must be whole positive number!"])
                 return
             else:
-                if int(self.args[2]) <= OrderService.MAX_SHARE_UNITS:
+                if int(self.args[2]) <= app.config['MAX_SHARE_UNITS']:
                     order_dict['buy_shares'] = self.args[2]
                 else:
                     order_dict['buy_funds'] = self.args[2]
 
-        
+        round_n = app.config['ROUNDS_COLLECT'][-1]
+        match = TeamService.get_game(stock.name, round_n=round_n)
+        if match and (match['homeTeamName'].strip() in app.config['ADMIN_TEAMS'] or \
+                    match['awayTeamName'].strip() in app.config['ADMIN_TEAMS']):
+            await self.reply([f"You cannot buy stocks of a team going into BYE week!!!"])
+            return
+
+
         order = OrderService.create(user, stock, **order_dict)
-        await self.reply([f"Order **{order.id}** placed succesfully."," ",f"**{order.description}**"])
+        await self.reply([f"Order **{order.id}** placed succesfully."," ",f"**{order.desc()}**"])
         return
 
     async def __run_sell(self):
@@ -793,7 +800,7 @@ class DiscordCommand:
             if len(user.shares):
                 for share in user.shares:
                     order = OrderService.create(user, share.stock, **order_dict)
-                    await self.reply([f"Order placed succesfully."," ",f"**{order.description}**"])
+                    await self.reply([f"Order placed succesfully."," ",f"**{order.desc()}**"])
             else:
                 await self.reply([f"You do not own any shares"])
         else:
@@ -821,7 +828,7 @@ class DiscordCommand:
                 return
 
             order = OrderService.create(user, stock, **order_dict)
-            await self.reply([f"Order **{order.id}** placed succesfully."," ",f"**{order.description}**"])
+            await self.reply([f"Order **{order.id}** placed succesfully."," ",f"**{order.desc()}**"])
         return
 
     async def __run_cancel(self):
