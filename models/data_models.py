@@ -1,11 +1,12 @@
 from sqlalchemy import or_, UniqueConstraint, desc
-
+from sqlalchemy import event
 from .base_model import db, Base, QueryWithSoftDelete
 import logging
 import json
 import datetime
 from logging.handlers import RotatingFileHandler
 import os
+from decimal import Decimal
 
 
 ROOT = os.path.dirname(__file__)
@@ -41,6 +42,25 @@ class User(Base):
 
     def __repr__(self):
         return '<User %r>' % self.name
+
+    def shares_value(self):
+        return sum([share.units * share.stock.unit_price for share in self.shares])
+        
+    def balance(self):
+        total_value = Decimal('0.00')
+        for share in self.shares:
+            total_value += share.units * share.stock.unit_price
+        balance = self.account.amount + total_value
+        return balance
+
+    def share_count(self):
+        return sum([share.units for share in self.shares])
+
+    def new_balance_history(self):
+        bh = BalanceHistory()
+        bh.user=self
+        bh.balance=self.balance()
+        bh.shares=self.share_count()
 
     def active(self):
         return not self.deleted
@@ -92,6 +112,14 @@ class User(Base):
     @classmethod
     def find_all_by_name(cls,name):
         return cls.query.filter(cls.name.ilike(f'%{name}%')).all()
+
+class BalanceHistory(Base):
+    __tablename__ = 'balance_histories'
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    balance = db.Column(db.Numeric(14,7), nullable=False)
+    shares = db.Column(db.Integer, nullable=False)
+
+    user = db.relationship('User', backref=db.backref('balance_histories', lazy=False, cascade="all, delete-orphan"), lazy=True)
 
 class StockHistory(Base):
     __tablename__ = 'stock_histories'
@@ -247,3 +275,24 @@ class Transaction(Base):
 
 class TransactionError(Exception):
     pass
+
+
+
+
+@event.listens_for(db.session,'before_flush')
+#@event.listens_for(Share,'before_update')
+def update_balance_history(session, flush_context, isinstances):
+#    """If stock price changes, update balance history of all users owning it"""
+    for instance in session.dirty:
+        if not isinstance(instance, Stock):
+            continue
+        state = db.inspect(instance)
+
+        if isinstance(instance, Stock):
+            history = state.attrs.unit_price.load_history()
+
+        # update all balances for the users owning this Stock
+        if history.has_changes():
+            if isinstance(instance, Stock):
+                for share in instance.shares:
+                    share.user.new_balance_history()

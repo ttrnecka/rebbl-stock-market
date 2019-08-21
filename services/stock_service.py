@@ -11,7 +11,7 @@ class StockService:
     division_replace_regexp = re.compile('(Season \d+\s+- Division\s+)|(#N\/A)')
     @classmethod
     def update(cls):
-        getcontext().prec = 7
+        getcontext().prec = 14
         stocks = SheetService.stocks(refresh=True)
         for stock in stocks:
             if not stock['Team(Sorted A-Z)']:
@@ -30,12 +30,12 @@ class StockService:
                     new_history = False
                 else:
                     change = Decimal(stock['Current Value']) - Decimal(db_stock.unit_price)
-
+            unit_price = round(Decimal(stock['Current Value']), 7)
             stock_dict = {
-                'name':stock['Team(Sorted A-Z)'],
-                'unit_price':stock['Current Value'],
+                'name': stock['Team(Sorted A-Z)'],
+                'unit_price': unit_price,
                 'code': cls.non_alphanum_regexp.sub('', stock['Code']),
-                'unit_price_change': change,
+                'unit_price_change': Decimal(change),
                 'race':stock['Race'],
                 'coach':stock['Coach'],
                 'division': f"{stock['Region']}{cls.division_replace_regexp.sub('', stock['Division'])}",
@@ -55,7 +55,7 @@ class StockService:
     def add(cls, user, stock, shares):
         share = Share.query.join(Share.user, Share.stock).filter(User.id == user.id, Stock.id == stock.id).one_or_none()
         if share:
-            share.units = Share.units + shares
+            share.units += shares
         else:
             share = Share()
             share.stock = stock
@@ -74,7 +74,7 @@ class StockService:
                 units = shares
                 left = True
             
-            share.units = Share.units - units
+            share.units -= units
             if not left:
                 db.session.delete(share)
             db.session.commit()

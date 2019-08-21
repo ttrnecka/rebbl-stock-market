@@ -347,11 +347,16 @@ class DiscordCommand:
     def list_messages(self,user):
         msg1 = [
             f"**User:** {user.short_name()}\n",
-            f"**Bank:** {round(user.account.amount, 2)} credits\n",
+            "```",
+            "{:14s}: {:9.2f}".format("Bank", user.account.amount),
+            "{:14s}: {:9.2f}".format("Shares Value", user.shares_value()),
+            25*"-",
+            "{:14s}: {:9.2f}".format("Balance", user.balance()),
+            "```",
+            " ",
             f"**Shares:**",
         ]
     
-        total_value = 0
         msg2 = []
         if user.shares:
             for share in user.shares:
@@ -365,29 +370,34 @@ class DiscordCommand:
                 msg2.append(
                     '{:5s} - {:25s}: {:3d} x {:7.2f}, Change: {:>7s}'.format(share.stock.code, share.stock.name, share.units, share.stock.unit_price, gain)
                 )
-                total_value += share.units * share.stock.unit_price
         
         msg3 = []
-        msg3.append("**Total Shares Value:** {:9.2f}".format(total_value))
-        msg3.append("**Balance:** {:9.2f}".format(total_value+user.account.amount))
-
-        msg3.append("")
-        msg3.append(f"**Outstanding Orders:**")
-        msg3.append(f"*Sell:*")
+        msg3.append(" ")
+        if user.orders:
+            msg3.append(f"**Outstanding Orders:**")
 
         for order in user.orders:
             if not order.processed and order.operation=="sell":
                 msg3.append(f"{order.id}. {order.description}")
         msg3.append(" ")
 
-        msg3.append(f"*Buy:*")
-
         for order in user.orders:
             if not order.processed and order.operation=="buy":
                 msg3.append(f"{order.id}. {order.description}")
         msg3.append(" ")
 
-        return msg1, msg2, msg3
+        msg3.append(" ")
+        msg3.append(f"**Balance history:**")
+        
+        msg4 = []
+        msg4.append(
+            '{:20s}: {:>8s}{:>13s}'.format("Date","Shares","Balance")
+        )
+        for history in user.balance_histories:
+            msg4.append(
+                '{:20s}: {:>8d}{:>13.2f}'.format(str(history.date_created), history.shares, history.balance)
+            )
+        return msg1, msg2, msg3, msg4
 
     # commands
     async def __run_help(self):
@@ -416,15 +426,17 @@ class DiscordCommand:
             )
             return
 
-        msg1, msg2, msg3 = self.list_messages(user)
+        msg1, msg2, msg3, msg4 = self.list_messages(user)
         if user.short_name() in ["MajorStockBot"]:
             await self.reply(msg1)
             await self.reply(msg2, block=True)
             await self.reply(msg3)
+            await self.reply(msg4, block=True)
         else:
             await self.send_message(self.message.author, msg1)
             await self.send_message(self.message.author, msg2, block=True)
             await self.send_message(self.message.author, msg3)
+            await self.send_message(self.message.author, msg4, block=True)
             await self.short_reply("Info sent to PM")
 
     async def __run_admin(self):
@@ -513,10 +525,11 @@ class DiscordCommand:
                 await self.reply(msg)
 
             for user in users:
-                msg1, msg2, msg3 = self.list_messages(user)
+                msg1, msg2, msg3, msg4 = self.list_messages(user)
                 await self.reply(msg1)
                 await self.reply(msg2, block=True)
                 await self.reply(msg3)
+                await self.reply(msg4, block=True)
         
         if self.args[0] == '!adminbank':
             # require username argument
@@ -859,11 +872,7 @@ class DiscordCommand:
 
         user_tuples = []
         for user in users:
-            total_value = 0
-            for share in user.shares:
-                total_value += share.units * share.stock.unit_price
-            balance = user.account.amount + total_value
-            user_tuples.append((balance, user))
+            user_tuples.append((user.balance(), user))
 
         sorted_users = sorted(user_tuples, key=lambda x: x[0], reverse=True)
 
