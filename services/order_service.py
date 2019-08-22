@@ -65,11 +65,12 @@ class OrderService:
             
             if order.stock.unit_price:
                 share = Share.query.join(Share.user, Share.stock).filter(User.id == order.user.id, Stock.id == order.stock.id).one_or_none()
-                if order.buy_shares:
+                
+                shares = funds // order.stock.unit_price
+                # if shares limited and they are less than max use them instead
+                if order.buy_shares and shares > order.buy_shares:
                     shares = order.buy_shares
-                else:
-                    shares = funds // order.stock.unit_price
-
+                
                 possible_shares = app.config['MAX_SHARE_UNITS']
                 if share:
                     possible_shares -= share.units

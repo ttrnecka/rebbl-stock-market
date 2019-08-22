@@ -4,6 +4,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import traceback
 import re
+import asyncio
 
 import discord
 from sqlalchemy import func, asc
@@ -270,6 +271,19 @@ class DiscordCommand:
         msg += "```"
         return msg
 
+    async def user_confirm(self):
+        await self.message.channel.send('Confirm by adding 👍 reaction in 15 seconds:')
+
+        def check(reaction, user):
+            return user == self.message.author and str(reaction.emoji) == '👍'
+
+        try:
+            reaction, user = await self.client.wait_for('reaction_add', timeout=15.0, check=check)
+        except asyncio.TimeoutError:
+            return False
+        else:
+            return True
+
     # must me under 2000 chars
     async def trade_notification(self, msg, user):
         """Notifies coach about bank change"""
@@ -500,6 +514,11 @@ class DiscordCommand:
             await self.short_reply(msg)
 
         if self.args[0] == "!admintrade":
+            if not await self.user_confirm():
+                await self.short_reply("Trading cancelled!")
+                return
+
+            await self.short_reply("Trading confirmed!")
 
             async def chunk_orders(orders):
                 group_count = 10

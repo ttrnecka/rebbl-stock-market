@@ -1,8 +1,14 @@
-Change picture
-Stock gain since the purchase
-top gain/loss for the week
+stock change picture
+Stock gain since the begining of the season
+hook change_units_by after order/adminshare
+test market max 10 shares
+flag the change with played/not played (import matches ot DB)
+put matches to DB so it can eb queried
+update match sheet export to use append
 
 DONE
+filter index stock from the notification
+make admintrade idiot proof
 Stock change to channel
 Bye week buy filter
 display stock detail (how many shares, how many buys/sells since last week)

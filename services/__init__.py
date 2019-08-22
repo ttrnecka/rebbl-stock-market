@@ -29,7 +29,7 @@ def update_balance_history(session, flush_context, isinstances):
 
         # update all balances for the users owning this Stock
         if history.has_changes():
-            if isinstance(instance, Stock):
+            if isinstance(instance, Stock) and "Index" not in instance.name:
                 msg = f"Stock {instance.code} - {instance.name} changed by {round(instance.unit_price_change,2)} to {round(instance.unit_price,2)}"
                 StockNotificationService.notify(msg)
                 for share in instance.shares:
