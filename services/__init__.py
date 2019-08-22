@@ -12,6 +12,7 @@ from .order_service import OrderService, OrderError
 from .notification_service import AdminNotificationService, StockNotificationService
 from .web_hook_service import WebHook
 from .team_service import TeamService
+from .plotting import balance_graph
 
 
 @event.listens_for(db.session,'before_flush')

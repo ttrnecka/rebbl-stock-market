@@ -10,7 +10,7 @@ from sqlalchemy import func, asc
 from sqlalchemy.orm.exc import MultipleResultsFound
 from web import db, app
 
-from services import SheetService, StockService, UserService, OrderService, OrderError, TeamService
+from services import SheetService, StockService, UserService, OrderService, OrderError, TeamService, balance_graph
 from models.data_models import Stock, User, Order, Share, Transaction, TransactionError
 from misc.helpers import represents_int, is_number
 
@@ -130,6 +130,8 @@ class DiscordCommand:
                 await self.__run_newuser()
             elif self.cmd.startswith('!list'):
                 await self.__run_list()
+            elif self.cmd.startswith('!graph'):
+                await self.__run_graph()
             elif self.cmd.startswith('!buy'):
                 await self.__run_buy()
             elif self.cmd.startswith('!sell'):
@@ -415,6 +417,25 @@ class DiscordCommand:
             ]
             await self.reply(msg)
 
+    async def __run_graph(self):
+        # require username argument
+        if len(self.args) == 1:
+            await self.reply(["Username/Stock is missing"])
+            return
+
+        users = User.find_all_by_name(self.args[1])
+        
+        if not users:
+            msg.append("No users found")
+            await self.reply(msg)
+        
+        user = users[0]
+        # file
+        f = balance_graph(user.balance_histories)
+        await self.message.channel.send(f"**User**: {user.short_name()}")
+        fl = discord.File("tmp/balance.png", filename="balance.png")
+        await self.message.channel.send(file=fl)
+        
     async def __run_list(self):
 
         user = User.get_by_discord_id(self.message.author.id)
@@ -521,7 +542,7 @@ class DiscordCommand:
             msg = []
 
             if not users:
-                msg.append("No coaches found")
+                msg.append("No users found")
                 await self.reply(msg)
 
             for user in users:

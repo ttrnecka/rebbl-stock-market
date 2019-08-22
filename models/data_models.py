@@ -56,10 +56,7 @@ class User(Base):
         return sum([share.units for share in self.shares])
 
     def new_balance_history(self):
-        bh = BalanceHistory()
-        bh.user=self
-        bh.balance=self.balance()
-        bh.shares=self.share_count()
+        bh = BalanceHistory(user=self, balance=self.balance(), shares=self.share_count())
 
     def active(self):
         return not self.deleted
