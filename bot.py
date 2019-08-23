@@ -816,8 +816,8 @@ class DiscordCommand:
 
         round_n = app.config['ROUNDS_COLLECT'][-1]
         match = MatchService.get_game(stock.name, round_n=round_n)
-        if match and (match['homeTeamName'].strip() in app.config['ADMIN_TEAMS'] or \
-                    match['awayTeamName'].strip() in app.config['ADMIN_TEAMS']):
+        if match and (match.homeTeamName.strip() in app.config['ADMIN_TEAMS'] or \
+                    match.awayTeamName.strip() in app.config['ADMIN_TEAMS']):
             await self.reply([f"You cannot buy stocks of a team going into BYE week!!!"])
             return
 
