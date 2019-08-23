@@ -379,7 +379,7 @@ class DiscordCommand:
             for share in user.shares:
                 gain = round(share.stock.unit_price_change, 2)
                 match = MatchService.get_game(share.stock.name, round_n=round_n)
-                played = "Y" if match.match_uuid else "N"
+                played = "Y" if match and match.match_uuid else "N"
                 if gain > 0:
                     gain = "+"+str(gain)
                 elif gain == 0:
@@ -707,7 +707,7 @@ class DiscordCommand:
                 round_n = app.config['ROUNDS_EXPORT'][-1]
                 for stock in stocks[0:limit]:
                     match = MatchService.get_game(stock.name, round_n=round_n)
-                    played = "Y" if match.match_uuid else "N"
+                    played = "Y" if match and match.match_uuid else "N"
                     msg.append(
                         '{:5s} - {:25} {:<8s} {:>7.2f}{:>8.2f}{:1s}{:>8d}{:>11.2f}'.format(stock.code, stock.name, stock.division, stock.unit_price, stock.unit_price_change, played, stock.share_count, stock.net_worth)
                     )
