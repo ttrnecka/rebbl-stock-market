@@ -286,3 +286,23 @@ class Transaction(Base):
 
 class TransactionError(Exception):
     pass
+
+class Match(Base):
+    __tablename__ = 'matches'
+
+    division = db.Column(db.String(255), nullable=False)
+    round = db.Column(db.Integer, nullable=False, index=True)
+    match_uuid = db.Column(db.String(255), nullable=True)
+    homeCoachId = db.Column(db.Integer, nullable=True)
+    homeTeamId = db.Column(db.Integer, nullable=True)
+    homeCoachName = db.Column(db.String(255), nullable=True, index=True)
+    homeTeamName = db.Column(db.String(255), nullable=False, index=True)
+    homeTeamRace = db.Column(db.String(255), nullable=False)
+    homeScore = db.Column(db.Integer, nullable=True)
+
+    awayCoachId = db.Column(db.Integer, nullable=True)
+    awayTeamId = db.Column(db.Integer, nullable=True)
+    awayCoachName = db.Column(db.String(255), nullable=True, index=True)
+    awayTeamName = db.Column(db.String(255), nullable=False, index=True)
+    awayTeamRace = db.Column(db.String(255), nullable=False)
+    awayScore = db.Column(db.Integer, nullable=True)

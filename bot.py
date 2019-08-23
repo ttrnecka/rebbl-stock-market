@@ -11,7 +11,7 @@ from sqlalchemy import func, asc
 from sqlalchemy.orm.exc import MultipleResultsFound
 from web import db, app
 
-from services import SheetService, StockService, UserService, OrderService, OrderError, TeamService, balance_graph
+from services import SheetService, StockService, UserService, OrderService, OrderError, MatchService, balance_graph
 from models.data_models import Stock, User, Order, Share, Transaction, TransactionError
 from misc.helpers import represents_int, is_number
 
@@ -375,8 +375,11 @@ class DiscordCommand:
     
         msg2 = []
         if user.shares:
+            round_n = app.config['ROUNDS_EXPORT'][-1]
             for share in user.shares:
                 gain = round(share.stock.unit_price_change, 2)
+                match = MatchService.get_game(share.stock.name, round_n=round_n)
+                played = "Y" if match.match_uuid else "N"
                 if gain > 0:
                     gain = "+"+str(gain)
                 elif gain == 0:
@@ -384,7 +387,7 @@ class DiscordCommand:
                 else:
                     gain = str(gain)
                 msg2.append(
-                    '{:5s} - {:25s}: {:3d} x {:7.2f}, Change: {:>7s}'.format(share.stock.code, share.stock.name, share.units, share.stock.unit_price, gain)
+                    '{:5s} - {:25s}: {:3d} x {:7.2f}, Change: {:>7s}, Played: {:1s}'.format(share.stock.code, share.stock.name, share.units, share.stock.unit_price, gain, played)
                 )
         
         msg3 = []
@@ -698,19 +701,22 @@ class DiscordCommand:
                     stocks = Stock.find_all_by_name(" ".join(self.args[1:]))
                 msg = []
                 msg.append(
-                    '{:5s} - {:25} {:<8s} {:<12s}{:<8s}{:<8s}{:<11s}'.format("Code","Team Name","Division","Unit Price","Change", "Shares", "Net Worth")
+                    '{:5s} - {:25} {:<8s} {:>7s}{:>9s}{:>8s}{:>11s}'.format("Code","Team Name","Division","Price","Change", "Shares", "Net Worth")
                 )
-                msg.append(80*"-")
+                msg.append(78*"-")
+                round_n = app.config['ROUNDS_EXPORT'][-1]
                 for stock in stocks[0:limit]:
+                    match = MatchService.get_game(stock.name, round_n=round_n)
+                    played = "Y" if match.match_uuid else "N"
                     msg.append(
-                        '{:5s} - {:25} {:<8s} {:10.2f}{:8.2f}{:8d}{:11.2f}'.format(stock.code, stock.name, stock.division, stock.unit_price, stock.unit_price_change, stock.share_count, stock.net_worth)
+                        '{:5s} - {:25} {:<8s} {:>7.2f}{:>8.2f}{:1s}{:>8d}{:>11.2f}'.format(stock.code, stock.name, stock.division, stock.unit_price, stock.unit_price_change, played, stock.share_count, stock.net_worth)
                     )
                 if detail:
                     round_n = app.config['ROUNDS_COLLECT'][-1]
-                    match = TeamService.get_game(stocks[0].name, round_n=round_n)
+                    match = MatchService.get_game(stocks[0].name, round_n=round_n)
                     if match:
-                        homeStock = Stock.find_all_by_name(match['homeTeamName'].strip())
-                        awayStock = Stock.find_all_by_name(match['awayTeamName'].strip())
+                        homeStock = Stock.find_all_by_name(match.homeTeamName.strip())
+                        awayStock = Stock.find_all_by_name(match.awayTeamName.strip())
 
                         homePrice = 0 if not homeStock else homeStock[0].unit_price
                         awayPrice = 0 if not awayStock else awayStock[0].unit_price
@@ -723,23 +729,23 @@ class DiscordCommand:
                         msg.append(" ")
                         msg.append(f"[Round {round_n} Match]")
                         msg.append(
-                            '{:>38s}  |  {:<37s}'.format("Home","Away")
+                            '{:>37s}  |  {:<36s}'.format("Home","Away")
                         )
-                        msg.append(80*"-")
+                        msg.append(78*"-")
                         msg.append(
-                            '{:>38s}  |  {:<37s}'.format(match['homeCoachName'],match['awayCoachName'])
-                        )
-                        msg.append(
-                            '{:>38s}  |  {:<37s}'.format(match['homeTeamName'],match['awayTeamName'])
+                            '{:>37s}  |  {:<36s}'.format(match.homeCoachName,match.awayCoachName)
                         )
                         msg.append(
-                            '{:>38s}  |  {:<37s}'.format(homeRace, awayRace)
+                            '{:>37s}  |  {:<36s}'.format(match.homeTeamName,match.awayTeamName)
                         )
                         msg.append(
-                            '{:>38.2f}  |  {:<34.2f}'.format(homePrice,awayPrice)
+                            '{:>37s}  |  {:<36s}'.format(homeRace, awayRace)
                         )
                         msg.append(
-                            '{:>38.2f}  |  {:<34.2f}'.format(homeChange,awayChange)
+                            '{:>37.2f}  |  {:<36.2f}'.format(homePrice,awayPrice)
+                        )
+                        msg.append(
+                            '{:>37.2f}  |  {:<36.2f}'.format(homeChange,awayChange)
                         )
                     
                     # only 1 stock
@@ -749,7 +755,7 @@ class DiscordCommand:
                     msg.append(
                         '{:32s}: {:>8s}{:>11s}'.format("Name","Shares","Net Worth")
                     )
-                    msg.append(80*"-")
+                    msg.append(78*"-")
                     for share in stocks[0].shares:
                         msg.append(
                             '{:32s}: {:8d}{:11.2f}'.format(share.user.short_name(), share.units, round(share.units*share.stock.unit_price,2))
@@ -761,7 +767,7 @@ class DiscordCommand:
                     msg.append(
                         '{:20s}: {:<12s}{:<8s}{:<8s}{:<11s}'.format("Date","Unit Price","Change","Shares", "Net Worth")
                     )
-                    msg.append(80*"-")
+                    msg.append(78*"-")
                     for sh in stocks[0].histories:
                         msg.append(
                             '{:20s}: {:10.2f}{:8.2f}{:8d}{:11.2f}'.format(str(sh.date_created), sh.unit_price, sh.unit_price_change, sh.units, round(sh.units*sh.unit_price,2))
@@ -809,7 +815,7 @@ class DiscordCommand:
                     order_dict['buy_funds'] = self.args[2]
 
         round_n = app.config['ROUNDS_COLLECT'][-1]
-        match = TeamService.get_game(stock.name, round_n=round_n)
+        match = MatchService.get_game(stock.name, round_n=round_n)
         if match and (match['homeTeamName'].strip() in app.config['ADMIN_TEAMS'] or \
                     match['awayTeamName'].strip() in app.config['ADMIN_TEAMS']):
             await self.reply([f"You cannot buy stocks of a team going into BYE week!!!"])

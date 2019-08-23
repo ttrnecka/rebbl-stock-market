@@ -7,7 +7,7 @@ import datetime as DT
 
 import bb2
 from web import db, app
-from services import SheetService, StockService, AdminNotificationService
+from services import SheetService, StockService, AdminNotificationService, MatchService
 
 app.app_context().push()
 
@@ -44,26 +44,7 @@ def main(argv):
     season = app.config['SEASON']
     rounds = app.config['ROUNDS_COLLECT']
     rounds_export = app.config['ROUNDS_EXPORT']
-
-    STATS_FILE = app.config['MATCH_FILE']
     
-    header = {
-        "division":"division",
-        "round":"round",
-        "match_uuid":"match_uuid",
-        "homeCoachId":"homeCoachId",
-        "homeCoachName":"homeCoachName",
-        "homeTeamId":"homeTeamId",
-        "homeTeamName":"homeTeamName",
-        "homeTeamRace":"homeTeamRace",
-        "homeScore":"homeScore",
-        "awayCoachId":"awayCoachId",
-        "awayCoachName":"awayCoachName",
-        "awayTeamId":"awayTeamId",
-        "awayTeamName":"awayTeamName",
-        "awayTeamRace":"awayTeamRace",
-        "awayScore":"awayScore"
-    }
     matches = []
     try:
         for league in leagues:
@@ -76,20 +57,13 @@ def main(argv):
         raise exc
 
     logger.info("Matches colleted")
+    MatchService.import_matches(matches)
+    logger.info("Matches stored")
     # filter out unplayed and not in export rounds
-    matches_to_export = [match for match in matches if match['match_uuid'] and match['round'] in rounds_export]
-    #sort by match uuid
-    matches_to_export = sorted(matches_to_export, key=lambda x: x['match_uuid'])
-
-    #strip team names
-    for match in matches_to_export:
-        match['homeTeamName'] = match['homeTeamName'].strip()
-        match['awayTeamName'] = match['awayTeamName'].strip()
-
-    #insert header
-    matches_to_export.insert(0, header)
-    # turn dict to list
-    matches_to_export = [list(match.values()) for match in matches_to_export]
+    matches_to_export = MatchService.played()
+    matches_to_export = [match for match in matches_to_export if match.round in rounds_export]
+    #sort by match uuid and in round
+    matches_to_export = sorted(matches_to_export, key=lambda x: x.match_uuid)
 
     try:
         SheetService.update_matches(matches_to_export)
@@ -101,22 +75,13 @@ def main(argv):
     logger.info("Matches exported to sheet")
 
     try:
-        file = open(STATS_FILE, "w")
-        file.write(json.dumps(matches))
-        file.close()
-    except Exception as exp:
-        logger.error(exp)
-        raise exp
-    logger.info("Matches stored to file")
-
-    try:
         StockService.update()
     except Exception as exc:
         logger.error(exc)
         AdminNotificationService.notify(str(exc))
         raise exc
 
-    logger.info("DB update")
+    logger.info("DB updated")
     AdminNotificationService.notify("Match data has been refreshed successfully")
 if __name__ == "__main__":
     main(sys.argv[1:])

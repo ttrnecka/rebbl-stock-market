@@ -11,7 +11,7 @@ from .user_service import UserService
 from .order_service import OrderService, OrderError
 from .notification_service import AdminNotificationService, StockNotificationService
 from .web_hook_service import WebHook
-from .team_service import TeamService
+from .match_service import MatchService
 from .plotting import balance_graph
 
 
