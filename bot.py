@@ -164,6 +164,7 @@ class DiscordCommand:
         msg += "!top - list worst investors \n"
         msg += "!buy - place BUY order \n"
         msg += "!stock - search for available STOCK \n"
+        msg += "!graph - graph users balance timeline \n"
         msg += "```"
         return msg
     @classmethod
@@ -437,19 +438,22 @@ class DiscordCommand:
     async def __run_graph(self):
         # require username argument
         if len(self.args) == 1:
-            await self.reply(["Username/Stock is missing"])
+            await self.reply(["Username(s) is missing, separate multiple users by **;**"])
             return
-
+        user_names = [user_name.strip() for user_name in " ".join(self.args[1:]).split(";")]
         users = User.find_all_by_name(self.args[1])
+
+        users = []
+        for user_name in user_names:
+            users.extend(User.find_all_by_name(user_name))
         
         if not users:
-            msg.append("No users found")
+            msg=["No users found"]
             await self.reply(msg)
+            return
         
-        user = users[0]
         # file
-        f = balance_graph(user.balance_histories)
-        await self.message.channel.send(f"**User**: {user.short_name()}")
+        f = balance_graph(users)
         fl = discord.File("tmp/balance.png", filename="balance.png")
         await self.message.channel.send(file=fl)
         
