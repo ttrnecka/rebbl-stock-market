@@ -453,7 +453,7 @@ class DiscordCommand:
             return
         
         # file
-        f = balance_graph(users)
+        balance_graph(users)
         fl = discord.File("tmp/balance.png", filename="balance.png")
         await self.message.channel.send(file=fl)
         

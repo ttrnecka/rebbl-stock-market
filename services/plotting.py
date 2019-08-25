@@ -17,6 +17,7 @@ def balance_graph(users):
         ax.plot(x, y, markerfacecolor='CornflowerBlue', markeredgecolor='white', label=user.short_name())
     ax.legend()
     fig.autofmt_xdate()
-
-    return fig.savefig("tmp/balance.png")
+    fig.savefig("tmp/balance.png")
+    plt.close(fig)
+    return True
 
