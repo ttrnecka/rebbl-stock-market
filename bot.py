@@ -260,13 +260,15 @@ class DiscordCommand:
         msg += "USAGE:\n"
         msg += "!stock <str>\n"
         msg += "\t<str>: search by team name, stock, code, race or coach name \n"
-        msg += "!stock top|bottom|hot|net|gain|loss|detail <X>\n"
+        msg += "!stock top|bottom|hot|net|gain|gain%|loss|loss%|detail <X>\n"
         msg += "\ttop: top priced stock\n"
         msg += "\tbottom: bottom priced stock\n"
         msg += "\thot: stock with most bought shares\n"
         msg += "\tnet: stock with most net worth\n"
         msg += "\tgain: stock with most absolute gain\n"
+        msg += "\tgain%: stock with most relative gain\n"
         msg += "\tloss: stock with most absolute loss\n"
+        msg += "\tloss%: stock with most relative loss\n"
         msg += "\tdetail: detailed stock info\n"
         msg += "\t<x>: find X top or bottom stocks, or X is stock code if detail is used\n"
         msg += "```"
@@ -677,7 +679,7 @@ class DiscordCommand:
                 await self.reply(["Incorrect number of arguments!!!", self.__class__.stock_help()])
             else:
                 limit = 24
-                if self.args[1] in ["top", "bottom", "hot", "net", "gain", "loss"] and len(self.args) == 3 and represents_int(self.args[2]) and int(self.args[2]) > 0 and int(self.args[2]) <= limit:
+                if self.args[1] in ["top", "bottom", "hot", "net", "gain", "loss", "gain%", "loss%"] and len(self.args) == 3 and represents_int(self.args[2]) and int(self.args[2]) > 0 and int(self.args[2]) <= limit:
                     if self.args[1] == "top":
                         stocks = Stock.find_top(self.args[2])
                     elif self.args[1] == "bottom":
@@ -686,8 +688,12 @@ class DiscordCommand:
                         stocks = Stock.find_net(self.args[2])
                     elif self.args[1] == "gain":
                         stocks = Stock.find_gain(self.args[2])
+                    elif self.args[1] == "gain%":
+                        stocks = Stock.find_gain_pct(self.args[2])
                     elif self.args[1] == "loss":
                         stocks = Stock.find_loss(self.args[2])
+                    elif self.args[1] == "loss%":
+                        stocks = Stock.find_loss_pct(self.args[2])
                     else:
                         stocks = Stock.find_hot(self.args[2])
                 elif self.args[1] == "detail" and len(self.args) == 3:
