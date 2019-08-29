@@ -718,8 +718,9 @@ class DiscordCommand:
                 for stock in stocks[0:limit]:
                     match = MatchService.get_game(stock.name, round_n=round_n)
                     played = "Y" if match and match.match_uuid else "N"
+                    changed_value = stock.unit_price_change if self.args[1] not in ["gain%", "loss%"] else 0 if int(stock.unit_price) == 0 else 100 * stock.unit_price_change / (stock.unit_price - stock.unit_price_change)
                     msg.append(
-                        '{:5s} - {:25} {:<8s} {:>7.2f}{:>8.2f}{:1s}{:>8d}{:>11.2f}'.format(stock.code, stock.name, stock.division, stock.unit_price, stock.unit_price_change, played, stock.share_count, stock.net_worth)
+                        '{:5s} - {:25} {:<8s} {:>7.2f}{:>8.2f}{:1s}{:>8d}{:>11.2f}'.format(stock.code, stock.name, stock.division, stock.unit_price, changed_value, played, stock.share_count, stock.net_worth)
                     )
                 if detail:
                     round_n = app.config['ROUNDS_COLLECT'][-1]
