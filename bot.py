@@ -710,8 +710,9 @@ class DiscordCommand:
                 else:
                     stocks = Stock.find_all_by_name(" ".join(self.args[1:]))
                 msg = []
+                change_desc = "Change" if self.args[1] not in ["gain%", "loss%"] else "Change%"
                 msg.append(
-                    '{:5s} - {:25} {:<8s} {:>7s}{:>9s}{:>8s}{:>11s}'.format("Code","Team Name","Division","Price","Change", "Shares", "Net Worth")
+                    '{:5s} - {:25} {:<8s} {:>7s}{:>9s}{:>8s}{:>11s}'.format("Code","Team Name","Division","Price",change_desc, "Shares", "Net Worth")
                 )
                 msg.append(78*"-")
                 round_n = app.config['ROUNDS_EXPORT'][-1]
