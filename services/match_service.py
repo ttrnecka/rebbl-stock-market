@@ -1,6 +1,6 @@
 """MatchService helpers"""
 import json
-from sqlalchemy import or_
+from sqlalchemy import or_, not_
 from models.data_models import Stock, Match
 from models.base_model import db
 from .sheet_service import SheetService
@@ -33,4 +33,4 @@ class MatchService:
 
     @classmethod
     def played(cls):
-        return Match.query.filter(Match.match_uuid != None).all()
+        return Match.query.filter(Match.match_uuid != None, not_(Match.division.ilike('%MNG%'))).all()

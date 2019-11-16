@@ -44,12 +44,22 @@ def main(argv):
     season = app.config['SEASON']
     rounds = app.config['ROUNDS_COLLECT']
     rounds_export = app.config['ROUNDS_EXPORT']
+
+    leagues_po = app.config['LEAGUES_PO']
+    rounds_po = app.config['ROUNDS_COLLECT_PO']
     
     matches = []
     try:
         for league in leagues:
             for round in rounds:
                 data = agent.slim_round(league,season,round)
+                matches.extend(data)
+
+        for league in leagues_po:
+            for round in rounds_po:
+                data = agent.slim_round(league,season,round)
+                for match in data:
+                    match["round"]+=13
                 matches.extend(data)
     except Exception as exc:
         logger.error(exc)
