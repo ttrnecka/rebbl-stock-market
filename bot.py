@@ -523,9 +523,9 @@ class DiscordCommand:
             await self.short_reply(msg)
 
         if self.args[0] == "!admintrade":
-            if not await self.user_confirm():
-                await self.short_reply("Trading cancelled!")
-                return
+            #if not await self.user_confirm():
+            #    await self.short_reply("Trading cancelled!")
+            #    return
 
             await self.short_reply("Trading confirmed!")
 
