@@ -145,6 +145,10 @@ class DiscordCommand:
                 await self.__run_flop()
             elif self.cmd.startswith('!help'):
                 await self.__run_help()
+            elif self.cmd.startswith('!points'):
+                await self.__run_points()
+            elif self.cmd.startswith('!gain'):
+                await self.__run_gain()
         except Exception as e:
             await self.transaction_error(e)
             #raising will not kill the discord bot but will cause it to log this to log as well
@@ -161,10 +165,12 @@ class DiscordCommand:
         msg += "!list - list your account info \n"
         msg += "!cancel - CANCELs order \n"
         msg += "!top - list TOP investors \n"
-        msg += "!top - list worst investors \n"
+        msg += "!flop - list worst investors \n"
+        msg += "!gain - list current week TOP gains\n"
         msg += "!buy - place BUY order \n"
         msg += "!stock - search for available STOCK \n"
         msg += "!graph - graph users balance timeline \n"
+        msg += "!points - list point leaderboard \n"
         msg += "```"
         return msg
     @classmethod
@@ -213,6 +219,28 @@ class DiscordCommand:
         msg += "USAGE:\n"
         msg += "!top <count>\n"
         msg += "\t<count>: count of the top investors to display (max 50)\n"
+        msg += "```"
+        return msg
+
+    @classmethod
+    def gain_help(cls):
+        """help message"""
+        msg = "```"
+        msg += "List top gain investors in current week\n"
+        msg += "USAGE:\n"
+        msg += "!gain <count>\n"
+        msg += "\t<count>: count of the top investors to display (max 50)\n"
+        msg += "```"
+        return msg
+
+    @classmethod
+    def points_help(cls):
+        """help message"""
+        msg = "```"
+        msg += "List points leaderboard\n"
+        msg += "USAGE:\n"
+        msg += "!points <count>\n"
+        msg += "\t<count>: count of the top users to display (max 50)\n"
         msg += "```"
         return msg
 
@@ -367,7 +395,7 @@ class DiscordCommand:
         msg1 = [
             f"**User:** {user.short_name()}\n",
             "```",
-            "{:14s}: {:9.2f}".format("Bank", user.account.amount),
+            "{:14s}: {:9.2f}".format("Bank", user.account().amount),
             "{:14s}: {:9.2f}".format("Shares Value", user.shares_value()),
             25*"-",
             "{:14s}: {:9.2f}".format("Balance", user.balance()),
@@ -429,13 +457,17 @@ class DiscordCommand:
     async def __run_newuser(self):
         if User.get_by_discord_id(self.message.author.id):
             await self.reply([f"**{self.message.author.mention}** account exists already\n"])
+            return
+        elif User.get_by_discord_id(self.message.author.id, deleted=True):
+            user =  User.get_by_discord_id(self.message.author.id, deleted=True)
+            user.activate()
         else:
             user = UserService.new_coach(self.message.author, self.message.author.id)
-            msg = [
-                f"**{self.message.author.mention}** account created\n",
-                f"**Bank:** {round(user.account.amount, 2)} {app.config['CREDITS']}",
-            ]
-            await self.reply(msg)
+        msg = [
+            f"**{self.message.author.mention}** account created/activated\n",
+            f"**Bank:** {round(user.account().amount, 2)} {app.config['CREDITS']}",
+        ]
+        await self.reply(msg)
 
     async def __run_graph(self):
         # require username argument
@@ -522,44 +554,6 @@ class DiscordCommand:
 
             await self.short_reply(msg)
 
-        if self.args[0] == "!admintrade":
-            #if not await self.user_confirm():
-            #    await self.short_reply("Trading cancelled!")
-            #    return
-
-            await self.short_reply("Trading confirmed!")
-
-            async def chunk_orders(orders):
-                group_count = 10
-                order_chunks = [orders[i:i+group_count] for i in range(0, len(orders), group_count)]
-                for chunk in order_chunks:
-                    msg = []
-                    for order in chunk:
-                        order = OrderService.process(order)
-                        msg.append(f"{self.user_mention(order.user)}: {order.result}")
-                    await self.trade_message(msg)
-            
-            await self.short_reply("Updating DB...")
-            StockService.update()
-            await self.short_reply("Done")
-            await self.short_reply("Closing market...")
-            OrderService.close()
-            await self.short_reply("Done")
-
-            await self.short_reply("Processing SELL orders...")
-            orders = Order.query.order_by(asc(Order.date_created)).filter(Order.processed == False, Order.operation == "sell").all()
-            await chunk_orders(orders)
-            await self.short_reply("Done")
-
-            await self.short_reply("Processing BUY orders...")
-            orders = Order.query.order_by(asc(Order.date_created)).filter(Order.processed == False, Order.operation == "buy").all()
-            await chunk_orders(orders)
-            await self.short_reply("Done")
-            
-            await self.short_reply("Opening market...")
-            OrderService.open()
-            await self.short_reply("Done")
-
         if self.args[0] == "!adminlist":
             # require username argument
             if len(self.args) == 1:
@@ -607,7 +601,7 @@ class DiscordCommand:
                 return
             else:
                 msg = [
-                    f"Bank for {user.name} updated to **{round(user.account.amount,2)}** {app.config['CREDITS']}:\n",
+                    f"Bank for {user.name} updated to **{round(user.account().amount,2)}** {app.config['CREDITS']}:\n",
                     f"Note: {reason}\n",
                     f"Change: {amount} {app.config['CREDITS']}"
                 ]
@@ -933,21 +927,11 @@ class DiscordCommand:
             await self.reply([f"**{self.args[1]}** must be whole positive number and be less or equal 50!"])
             return
         
-        users = User.query.all()
-
-        user_tuples = []
-        for user in users:
-            user_tuples.append((user.balance(), user))
-
-        sorted_users = sorted(user_tuples, key=lambda x: x[0], reverse=True)
-
-        max = int(self.args[1])
-        if max > len(sorted_users):
-            max = len(sorted_users)
+        sorted_users = UserService.order_by_balance(self.args[1])
 
         msg = ["```asciidoc"]
         msg.append(" = Place = | = Balance = | = Investor =")
-        for position, tup in enumerate(sorted_users[0:max], 1):
+        for position, tup in enumerate(sorted_users, 1):
             msg.append("{:3d}.       |{:12.2f} | {:s}".format(position, tup[0],tup[1].short_name()))
         msg.append("```")
 
@@ -964,26 +948,54 @@ class DiscordCommand:
             await self.reply([f"**{self.args[1]}** must be whole positive number and be less or equal 50!"])
             return
         
-        users = User.query.all()
-
-        user_tuples = []
-        for user in users:
-            total_value = 0
-            for share in user.shares:
-                total_value += share.units * share.stock.unit_price
-            balance = user.account.amount + total_value
-            user_tuples.append((balance, user))
-
-        sorted_users = sorted(user_tuples, key=lambda x: x[0])
-
-        max = int(self.args[1])
-        if max > len(sorted_users):
-            max = len(sorted_users)
+        sorted_users = UserService.order_by_balance(self.args[1],False)
 
         msg = ["```asciidoc"]
         msg.append(" = Place = | = Balance = | = Investor =")
-        for position, tup in enumerate(sorted_users[0:max], 1):
+        for position, tup in enumerate(sorted_users, 1):
             msg.append("{:3d}.       |{:12.2f} | {:s}".format(position, tup[0],tup[1].short_name()))
+        msg.append("```")
+
+        await self.reply(msg)
+        return
+
+    async def __run_points(self):
+       
+        if len(self.args) not in [2]:
+            await self.reply(["Incorrect number of arguments!!!", self.__class__.points_help()])
+            return
+
+        if not represents_int(self.args[1]) or int(self.args[1]) > 50 or int(self.args[1]) <= 0:
+            await self.reply([f"**{self.args[1]}** must be whole positive number and be less or equal 50!"])
+            return
+        
+        sorted_users = UserService.order_by_points(self.args[1])
+
+        msg = ["```asciidoc"]
+        msg.append(" = Place = | = Points = | = Investor =")
+        for position, tup in enumerate(sorted_users, 1):
+            msg.append("{:3d}.       |{:11d} | {:s}".format(position, tup[0],tup[1].short_name()))
+        msg.append("```")
+
+        await self.reply(msg)
+        return
+
+    async def __run_gain(self):
+       
+        if len(self.args) not in [2]:
+            await self.reply(["Incorrect number of arguments!!!", self.__class__.gain_help()])
+            return
+
+        if not represents_int(self.args[1]) or int(self.args[1]) > 50 or int(self.args[1]) <= 0:
+            await self.reply([f"**{self.args[1]}** must be whole positive number and be less or equal 50!"])
+            return
+        
+        sorted_users = UserService.order_by_current_gain(self.args[1])
+
+        msg = ["```asciidoc"]
+        msg.append(" = Place = | = Gain = | = Investor =")
+        for position, tup in enumerate(sorted_users, 1):
+            msg.append("{:3d}.       |{:9.2f} | {:s}".format(position, tup[0],tup[1].short_name()))
         msg.append("```")
 
         await self.reply(msg)

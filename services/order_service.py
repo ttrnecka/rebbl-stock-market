@@ -81,7 +81,7 @@ class OrderService:
         if order.operation == "buy":
             # sets the order stock price at the time of processing
             order.share_price = order.stock.unit_price
-            funds = order.user.account.amount
+            funds = order.user.account().amount
             if order.buy_funds and order.buy_funds < funds:
                 funds = order.buy_funds
             

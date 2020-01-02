@@ -27,17 +27,25 @@ class User(Base):
     __tablename__ = 'users'
     disc_id = db.Column(db.BigInteger(),nullable=False,index=True)
     name = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    account = db.relationship('Account', uselist=False, backref=db.backref('coach', lazy=True), cascade="all, delete-orphan")
+    accounts = db.relationship('Account', backref=db.backref('user', lazy=True), cascade="all, delete-orphan")
+    point_cards = db.relationship('PointCard', backref=db.backref('user', lazy=True), cascade="all, delete-orphan")
     deleted = db.Column(db.Boolean(), default=False)
 
     query_class = QueryWithSoftDelete
 
     orders = db.relationship('Order', order_by="asc(Order.date_created)", backref=db.backref('user', lazy=False), cascade="all, delete-orphan",lazy=True)
 
+    def account(self):
+        return next((account for account in self.accounts if account.active), None)
+
+    def point_card(self):
+        return next((card for card in self.point_cards if card.active), None)
+
     def __init__(self,name="",disc_id=0):
         self.name = name
         self.disc_id = disc_id
-        self.account = Account()
+        self.accounts.append(Account())
+        self.point_cards.append(PointCard())
 
     def __repr__(self):
         return '<User %r>' % self.name
@@ -49,8 +57,27 @@ class User(Base):
         total_value = Decimal('0.00')
         for share in self.shares:
             total_value += share.units * share.stock.unit_price
-        balance = self.account.amount + total_value
+        balance = self.account().amount + total_value
         return balance
+
+    def points(self):
+        total_value = 0
+        for record in self.point_card().records:
+            total_value += record.amount
+
+        return total_value
+
+    def current_gain(self):
+        return self.account().amount - self.account().snapshots[-1].amount
+    
+    def week_gain(self,week):
+        snapshots = AccountSnapshot.query.join(Account.snapshots) \
+                    .filter(Account.active == True, AccountSnapshot.week.in_((week,week-1)), Account.user_id == self.id) \
+                    .order_by(AccountSnapshot.week).all()
+        if len(snapshots) == 2:
+            return snapshots[1].amount - snapshots[0].amount
+        else:
+            return 0
 
     def share_count(self):
         return sum([share.units for share in self.shares])
@@ -63,6 +90,13 @@ class User(Base):
 
     def activate(self):
         self.deleted = False
+        for account in self.accounts:
+            account.active = False
+        self.accounts.append(Account())
+        for card in self.point_cards:
+            card.active = False
+        self.point_cards.append(PointCard())
+        db.session.commit()
 
     def short_name(self):
         return self.name[:-5]
@@ -76,15 +110,15 @@ class User(Base):
 
     def make_transaction(self,transaction):
         # do nothing
-        if self.account.amount < transaction.price:
+        if self.account().amount < transaction.price:
             raise TransactionError("Insuficient Funds")
         if transaction.confirmed:
             raise TransactionError("Double processing of transaction")
 
         try:
-            self.account.amount = Account.amount - transaction.price
+            self.account().amount = Account.amount - transaction.price
             transaction.confirm()
-            self.account.transactions.append(transaction)
+            self.account().transactions.append(transaction)
             db.session.commit()
         except Exception as e:
             raise TransactionError(str(e))
@@ -93,10 +127,18 @@ class User(Base):
 
         return transaction
 
+    def award_points(self, points = 0, reason = ""):
+        record = PointRecord()
+        record.amount = points
+        record.reason = reason
+        self.point_card().records.append(record)
 
     @classmethod
-    def get_by_discord_id(cls,id):
-        return cls.query.filter_by(disc_id=id).one_or_none()
+    def get_by_discord_id(cls,id, deleted=False):
+        if deleted:
+            return cls.query.with_deleted().filter_by(disc_id=id).one_or_none()
+        else:
+            return cls.query.filter_by(disc_id=id).one_or_none()
 
     @classmethod
     def create(cls,name,disc_id):
@@ -270,19 +312,42 @@ class Order(Base):
             else:
                 desc = f"Sell all units of {self.stock.code} ({self.stock.name})"
         return desc
+
 class Account(Base):
     __tablename__ = 'accounts'
     INIT_CASH = 30000.0
     amount = db.Column(db.Numeric(14,7), default=INIT_CASH, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    active = db.Column(db.Boolean, default=True, nullable=False)
+    season = db.Column(db.Integer, nullable=False, default=12, index = True)
 
     transactions = db.relationship('Transaction', backref=db.backref('account', lazy=False), cascade="all, delete-orphan",lazy=False)
+
+    def __init__(self):
+        app = db.get_app()
+        self.season = app.config['SEASON']
+        self.amount = self.INIT_CASH
+        self.make_snapshot(app.config['ROUNDS_EXPORT'][-1]-1)
 
     def __repr__(self):
         return '<Account %r>' % self.amount
 
     def reset(self):
         self.amount = self.__class__.INIT_CASH
+
+    def make_snapshot(self,week):
+        snap = AccountSnapshot()
+        snap.amount = self.amount
+        snap.week = week
+        self.snapshots.append(snap)
+
+class AccountSnapshot(Base):
+    __tablename__ = 'account_snapshots'
+    amount = db.Column(db.Numeric(14,7), nullable=False)
+    week = db.Column(db.Integer, nullable=False, index = True)
+    account_id = db.Column(db.Integer, db.ForeignKey('accounts.id'))
+
+    account = db.relationship('Account', backref=db.backref('snapshots', lazy=False, cascade="all, delete-orphan"), lazy=True)
 
 class Transaction(Base):
     __tablename__ = 'transactions'
@@ -300,6 +365,25 @@ class Transaction(Base):
 
 class TransactionError(Exception):
     pass
+
+class PointCard(Base):
+    __tablename__ = 'point_cards'
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    active = db.Column(db.Boolean, default=True, nullable=False)
+    season = db.Column(db.Integer, nullable=False, default=12, index = True)
+
+    records = db.relationship('PointRecord', backref=db.backref('card', lazy=False), cascade="all, delete-orphan",lazy=False)
+
+    def __init__(self):
+        app = db.get_app()
+        self.season = app.config['SEASON']
+        
+class PointRecord(Base):
+    __tablename__ = 'point_records'
+    card_id = db.Column(db.Integer, db.ForeignKey('point_cards.id'), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
+    reason = db.Column(db.String(255), nullable=False)
+
 
 class Match(Base):
     __tablename__ = 'matches'

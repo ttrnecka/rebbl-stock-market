@@ -41,7 +41,7 @@ def main(argv):
     
     
     leagues = app.config['LEAGUES']
-    season = app.config['SEASON']
+    season = f"season {app.config['SEASON']}"
     rounds = app.config['ROUNDS_COLLECT']
     rounds_export = app.config['ROUNDS_EXPORT']
 

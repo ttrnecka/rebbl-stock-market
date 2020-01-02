@@ -61,6 +61,7 @@ class StockService:
             share.stock = stock
             share.user = user
             share.units = shares
+        share.stock.change_units_by(shares)
         db.session.commit()
         return shares
 
@@ -77,6 +78,7 @@ class StockService:
             share.units -= units
             if not left:
                 db.session.delete(share)
+            share.stock.change_units_by(-1*units)
             db.session.commit()
             return units
         return 0
