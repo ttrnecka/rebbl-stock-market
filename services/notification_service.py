@@ -28,3 +28,4 @@ class Notificator:
 
 AdminNotificationService = Notificator("admin")
 StockNotificationService = Notificator("stock")
+OrderNotificationService = Notificator("order")

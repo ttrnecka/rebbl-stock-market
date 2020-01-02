@@ -9,10 +9,11 @@ from .sheet_service import SheetService
 from .stock_service import StockService
 from .user_service import UserService
 from .order_service import OrderService, OrderError
-from .notification_service import AdminNotificationService, StockNotificationService
+from .notification_service import AdminNotificationService, StockNotificationService, OrderNotificationService
 from .web_hook_service import WebHook
 from .match_service import MatchService
 from .plotting import balance_graph
+
 
 
 @event.listens_for(db.session,'before_flush')

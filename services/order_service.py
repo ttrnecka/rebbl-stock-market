@@ -1,4 +1,6 @@
 """OrderService helpers"""
+import json
+import os
 
 from models.data_models import Stock, Order, User, Share, Transaction, TransactionError, StockHistory
 from models.base_model import db
@@ -6,20 +8,40 @@ from models.base_model import db
 class OrderError(Exception):
     pass
 
+class Config:
+    FILE = f"{os.path.dirname(os.path.realpath(__file__))}/../config/config.json"
+    """TradeService service namespace"""
+    
+    @classmethod
+    def read_config(cls):
+        with open(cls.FILE, 'r') as f:
+            config = json.load(f)
+        return config
+
+    @classmethod
+    def write_config(cls,config):
+        with open(cls.FILE, 'w') as f:
+            json.dump(config, f)
+
 class OrderService:
-    __open = True
+    @classmethod
+    def close(cls):
+        cls.__change(True)
 
     @classmethod
     def open(cls):
-        cls.__open = True
-    
-    @classmethod
-    def close(cls):
-        cls.__open = False
-    
+        cls.__change(False)
+
     @classmethod
     def is_open(cls):
-        return cls.__open
+        config = Config.read_config()
+        return not config['market_closed']
+
+    @classmethod
+    def __change(cls,state):
+        config = Config.read_config()
+        config['market_closed'] = state
+        Config.write_config(config)
     
     @classmethod
     def create(cls, user, stock, **kwargs):
@@ -94,7 +116,7 @@ class OrderService:
                     tran = Transaction(order=order, price=order.final_price, description=order.result)
                 else:
                     order.success = False
-                    order.result = f"Not enough funds to buy any shares or {app.config['MAX_SHARE_UNITS']} share limit reached"
+                    order.result = f"Not enough funds to buy any shares of {order.stock.code} or {app.config['MAX_SHARE_UNITS']} share limit reached"
             else:
                 order.success = False
                 order.result = "Cannot buy stock with 0 price"
@@ -126,7 +148,7 @@ class OrderService:
                 tran = Transaction(order=order, price=-1*order.final_price, description=order.result)
             else:
                 order.success = False
-                order.result = "No shares left to sell"
+                order.result = f"No shares of {order.stock.code} left to sell"
             order.processed = True
         
         if order.success:
