@@ -12,6 +12,6 @@ for user in User.query.all():
     snap.amount = 30000
     snap.week = 0
     user.account().snapshots.append(snap)
-    user.account().make_snapshot(17)
+    user.account().make_snapshot(19)
 
 db.session.commit()
