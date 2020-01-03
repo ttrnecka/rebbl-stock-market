@@ -108,7 +108,7 @@ class User(Base):
             card.active = True
         else:
             self.point_cards.append(PointCard())
-
+        self.new_balance_history()
         db.session.commit()
 
     def short_name(self):
