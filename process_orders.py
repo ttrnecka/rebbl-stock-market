@@ -95,7 +95,8 @@ def main(argv):
         for i, user in enumerate(sorted_users):
             j = i +1
             user[1].award_points(POINTS[j], f"Top {j} gain in week {app.config['ROUNDS_EXPORT'][-1]}")
-            OrderNotificationService.notify(f"{user[1].mention()}: Awarded {POINTS[j]} for top {j} gain ({round(user[0],2)}) in week {app.config['ROUNDS_EXPORT'][-1]}")
+            OrderNotificationService.notify(f"{user[1].mention()}: Awarded {POINTS[j]} points for top {j} gain ({round(user[0],2)}) in week {app.config['ROUNDS_EXPORT'][-1]}")
+        db.session.commit()
         AdminNotificationService.notify("Done")
 
     except Exception as exc:

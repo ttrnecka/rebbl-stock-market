@@ -282,6 +282,19 @@ class DiscordCommand:
         return msg
 
     @classmethod
+    def adminpoints_help(cls):
+        """help message"""
+        msg = "```"
+        msg += "USAGE:\n"
+        msg += "!adminpoints <amount> <user> <reason>\n"
+        msg += "\t<amount>: number of points to add to user, if negative is used, "
+        msg += "it will be deducted\n"
+        msg += "\t<user>: user discord name or its part, must be unique\n"
+        msg += "\t<reason>: describe why you are doing this\n"
+        msg += "```"
+        return msg
+
+    @classmethod
     def stock_help(cls):
         """help message"""
         msg = "```"
@@ -399,10 +412,17 @@ class DiscordCommand:
             "{:14s}: {:9.2f}".format("Shares Value", user.shares_value()),
             25*"-",
             "{:14s}: {:9.2f}".format("Balance", user.balance()),
+            "{:14s}: {:9.2f}".format("Week Gain", user.current_gain()),
+            "{:14s}: {:9d}".format("Points", user.points()),
+            25*"-",
+        ]
+        for record in user.point_card().records:
+            msg1.append("{:2d} points - {}".format(record.amount, record.reason))
+        msg1.extend([
             "```",
             " ",
             f"**Shares:**",
-        ]
+        ])
     
         msg2 = []
         if user.shares:
@@ -455,6 +475,10 @@ class DiscordCommand:
         return
 
     async def __run_newuser(self):
+        if not app.config['LIVE']:
+            await self.reply(["Season has not started yet, come back later!"])
+            return
+            
         if User.get_by_discord_id(self.message.author.id):
             await self.reply([f"**{self.message.author.mention}** account exists already\n"])
             return
@@ -664,6 +688,40 @@ class DiscordCommand:
                 ]
                 await self.reply(msg)
                 await self.bank_notification(f"Your {stock.code} shares has been updated by **{amount}** - {reason}", user)
+                return
+            
+        if self.args[0] == '!adminpoints':
+            # require username argument
+            if len(self.args) < 4:
+                await self  .reply(["Not enough arguments!!!\n"])
+                await self.short_reply(self.__class__.adminpoints_help())
+                return
+
+            # amount must be int
+            if not represents_int(self.args[1]):
+                await self.reply([f"{self.args[1]} is not whole number!!!\n"])
+                return
+
+            user = await self.user_unique(self.args[2])
+            if user is None:
+                return
+
+            amount = int(self.args[1])
+            reason = ' '.join(str(x) for x in self.message.content.split(" ")[3:]) + " - updated by " + str(self.message.author.name)
+            try:
+                user.award_points(amount, reason)
+                db.session.commit()
+            except Exception as e:
+                await self.transaction_error(e)
+                return
+            else:
+                msg = [
+                    f"Points for {user.name} has been updated.\n",
+                    f"Note: {reason}\n",
+                    f"Change: {amount} points"
+                ]
+                await self.reply(msg)
+                await self.bank_notification(f"Your points has been updated by **{amount}** - {reason}", user)
                 return
             
     async def __run_stock(self):

@@ -68,7 +68,8 @@ class User(Base):
         return total_value
 
     def current_gain(self):
-        return self.account().amount - self.account().snapshots[-1].amount
+        app = db.get_app()
+        return self.account().amount - self.account().snapshot_for_week(app.config['ROUNDS_EXPORT'][-1]-1).amount
     
     def week_gain(self,week):
         snapshots = AccountSnapshot.query.join(Account.snapshots) \
@@ -90,12 +91,24 @@ class User(Base):
 
     def activate(self):
         self.deleted = False
+
         for account in self.accounts:
             account.active = False
-        self.accounts.append(Account())
+        acc = self.current_season_account()
+        if acc:
+            acc.active = True
+        else:
+            self.accounts.append(Account())
+
         for card in self.point_cards:
             card.active = False
-        self.point_cards.append(PointCard())
+        
+        card = self.current_season_point_card()
+        if card:
+            card.active = True
+        else:
+            self.point_cards.append(PointCard())
+
         db.session.commit()
 
     def short_name(self):
@@ -132,6 +145,14 @@ class User(Base):
         record.amount = points
         record.reason = reason
         self.point_card().records.append(record)
+
+    def current_season_account(self):
+        app = db.get_app()
+        return next((account for account in self.accounts if account.season==app.config['SEASON']), None)
+
+    def current_season_point_card(self):
+        app = db.get_app()
+        return next((card for card in self.point_cards if card.season==app.config['SEASON']), None)
 
     @classmethod
     def get_by_discord_id(cls,id, deleted=False):
@@ -315,6 +336,7 @@ class Order(Base):
 
 class Account(Base):
     __tablename__ = 'accounts'
+    __table_args__ = (db.UniqueConstraint('user_id', 'season'), )
     INIT_CASH = 30000.0
     amount = db.Column(db.Numeric(14,7), default=INIT_CASH, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -336,13 +358,17 @@ class Account(Base):
         self.amount = self.__class__.INIT_CASH
 
     def make_snapshot(self,week):
-        snap = AccountSnapshot()
+        snap = self.snapshot_for_week(week)
         snap.amount = self.amount
         snap.week = week
         self.snapshots.append(snap)
 
+    def snapshot_for_week(self,week):
+        return next((snap for snap in self.snapshots if snap.week==week), AccountSnapshot())
+
 class AccountSnapshot(Base):
     __tablename__ = 'account_snapshots'
+    __table_args__ = (db.UniqueConstraint('account_id', 'week'), )
     amount = db.Column(db.Numeric(14,7), nullable=False)
     week = db.Column(db.Integer, nullable=False, index = True)
     account_id = db.Column(db.Integer, db.ForeignKey('accounts.id'))
@@ -368,6 +394,7 @@ class TransactionError(Exception):
 
 class PointCard(Base):
     __tablename__ = 'point_cards'
+    __table_args__ = (db.UniqueConstraint('user_id', 'season'), )
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     active = db.Column(db.Boolean, default=True, nullable=False)
     season = db.Column(db.Integer, nullable=False, default=12, index = True)

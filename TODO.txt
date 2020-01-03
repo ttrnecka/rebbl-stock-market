@@ -1,5 +1,4 @@
 Stock gain since the begining of the season/round
-Account/PointCards - unique for season/coach
 
 DONE
 flag the change with played/not played (import matches ot DB first)
