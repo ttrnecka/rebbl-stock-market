@@ -877,7 +877,9 @@ class DiscordCommand:
     async def __run_buy(self):
         user = User.get_by_discord_id(self.message.author.id)
         order_dict = {
-            'operation':"buy"
+            'operation':"buy",
+            'season': app.config['SEASON'],
+            'week': app.config['ROUNDS_EXPORT'][-1]
         }
 
         if user is None:
@@ -925,7 +927,9 @@ class DiscordCommand:
     async def __run_sell(self):
         user = User.get_by_discord_id(self.message.author.id)
         order_dict = {
-            'operation':"sell"
+            'operation':"sell",
+            'season': app.config['SEASON'],
+            'week': app.config['ROUNDS_EXPORT'][-1]
         }
 
         if user is None:

@@ -332,6 +332,8 @@ class Order(Base):
     processed = db.Column(db.Boolean, default=False, nullable=False)
     result = db.Column(db.String(255), nullable=True)
     success = db.Column(db.Boolean, default=False, nullable=False)
+    season = db.Column(db.Integer, nullable=False, default=12, index = True)
+    week = db.Column(db.Integer, nullable=False, index = True)
 
     transaction = db.relationship('Transaction',uselist=False, backref=db.backref('order', lazy=True), cascade="all, delete-orphan",lazy=False)
 
