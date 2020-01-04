@@ -34,6 +34,7 @@ class User(Base):
     query_class = QueryWithSoftDelete
 
     orders = db.relationship('Order', order_by="asc(Order.date_created)", backref=db.backref('user', lazy=False), cascade="all, delete-orphan",lazy=True)
+    positions = db.relationship('Position', order_by="asc(Position.date_created)", backref=db.backref('user', lazy=False), cascade="all, delete-orphan",lazy=True)
 
     def account(self):
         return next((account for account in self.accounts if account.active), None)
@@ -145,6 +146,22 @@ class User(Base):
         record.amount = points
         record.reason = reason
         self.point_card().records.append(record)
+
+    def record_position(self, position=1):
+        app = db.get_app()
+        pos = Position()
+        pos.position = position
+        pos.week = app.config['ROUNDS_EXPORT'][-1]
+        pos.season = app.config['SEASON']
+        self.positions.append(pos)
+
+    def position(self,season,week):
+        pos = Position.query.filter_by(user_id=self.id,week=week,season=season).one_or_none()
+
+        if pos:
+            return pos.position
+        else:
+            return "N/A"
 
     def current_season_account(self):
         app = db.get_app()
@@ -411,6 +428,13 @@ class PointRecord(Base):
     amount = db.Column(db.Integer, nullable=False)
     reason = db.Column(db.String(255), nullable=False)
 
+class Position(Base):
+    __tablename__ = "positions"
+    __table_args__ = (db.Index('ix_position_season_weak_user', 'user_id', 'season', 'week', unique=True), )
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    position = db.Column(db.Integer, nullable=False)
+    season = db.Column(db.Integer, nullable=False, default=12, index = True)
+    week = db.Column(db.Integer, nullable=False, index = True)
 
 class Match(Base):
     __tablename__ = 'matches'

@@ -5,6 +5,8 @@ from sqlalchemy import event
 from models.data_models import User, Transaction
 from models.base_model import db
 
+from misc.helpers import leaderboard
+
 class UserService:
     """UserService helpers namespace"""
 
@@ -36,11 +38,9 @@ class UserService:
 
         sorted_users = sorted(user_tuples, key=lambda x: x[0], reverse=reversed)
 
-        max = int(limit)
-        if max > len(sorted_users):
-            max = len(sorted_users)
-
-        return sorted_users[0:max]
+        sorted_users = leaderboard(sorted_users,limit)
+        
+        return sorted_users
 
     @staticmethod
     def week_gain(week,limit=10):
@@ -53,8 +53,6 @@ class UserService:
 
         sorted_users = sorted(user_tuples, key=lambda x: x[0], reverse=True)
 
-        max = int(limit)
-        if max > len(sorted_users):
-            max = len(sorted_users)
+        sorted_users = leaderboard(sorted_users,limit)
 
-        return sorted_users[0:max]
+        return sorted_users

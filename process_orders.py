@@ -84,20 +84,31 @@ def main(argv):
         OrderService.open()
         AdminNotificationService.notify("Done")
 
-        AdminNotificationService.notify("Recording gains...")
-        for user in User.query.all():
-            user.account().make_snapshot(app.config['ROUNDS_EXPORT'][-1])
-        db.session.commit()
-        AdminNotificationService.notify("Done")
+        # points and gains only after allowed
+        if app.config['ALLOW_TRACKING']:
+            AdminNotificationService.notify("Recording gains...")
+            for user in User.query.all():
+                user.account().make_snapshot(app.config['ROUNDS_EXPORT'][-1])
+            db.session.commit()
+            AdminNotificationService.notify("Done")
 
-        AdminNotificationService.notify("Awarding points...")
-        sorted_users = UserService.week_gain(app.config['ROUNDS_EXPORT'][-1], 25)
-        for i, user in enumerate(sorted_users):
-            j = i +1
-            user[1].award_points(POINTS[j], f"Top {j} gain in week {app.config['ROUNDS_EXPORT'][-1]}")
-            OrderNotificationService.notify(f"{user[1].mention()}: Awarded {POINTS[j]} points for top {j} gain ({round(user[0],2)}) in week {app.config['ROUNDS_EXPORT'][-1]}")
-        db.session.commit()
-        AdminNotificationService.notify("Done")
+            AdminNotificationService.notify("Recording positions...")
+            sorted_users = UserService.week_gain(app.config['ROUNDS_EXPORT'][-1], User.query.count())
+            for i, (position, value, user) in enumerate(sorted_users):
+                user.record_position(position)
+            db.session.commit()
+            AdminNotificationService.notify("Done")
+            
+            AdminNotificationService.notify("Awarding points...")
+            for i, (position, value, user) in enumerate(sorted_users):
+                if position > 25:
+                    break
+                user.award_points(POINTS[position], f"Top {position} gain in week {app.config['ROUNDS_EXPORT'][-1]}")
+                OrderNotificationService.notify(f"{user.mention()}: Awarded {POINTS[position]} points for top {position} gain ({round(value,2)}) in week {app.config['ROUNDS_EXPORT'][-1]}")
+            db.session.commit()
+            AdminNotificationService.notify("Done")
+        else:
+            AdminNotificationService.notify("Point awards skipped")
 
     except Exception as exc:
         AdminNotificationService.notify(str(exc))

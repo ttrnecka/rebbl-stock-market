@@ -149,6 +149,8 @@ class DiscordCommand:
                 await self.__run_points()
             elif self.cmd.startswith('!gain'):
                 await self.__run_gain()
+            elif self.cmd.startswith('!rank'):
+                await self.__run_rank()
         except Exception as e:
             await self.transaction_error(e)
             #raising will not kill the discord bot but will cause it to log this to log as well
@@ -171,6 +173,7 @@ class DiscordCommand:
         msg += "!stock - search for available STOCK \n"
         msg += "!graph - graph users balance timeline \n"
         msg += "!points - list point leaderboard \n"
+        msg += "!rank - show the past weekly ranks for user \n"
         msg += "```"
         return msg
     @classmethod
@@ -208,6 +211,17 @@ class DiscordCommand:
         msg += "USAGE:\n"
         msg += "!cancel <id>\n"
         msg += "\t<id>: id of the order from the !list or *all*\n"
+        msg += "```"
+        return msg
+
+    @classmethod
+    def rank_help(cls):
+        """help message"""
+        msg = "```"
+        msg += "Shows weekly rank for user\n"
+        msg += "USAGE:\n"
+        msg += "!rank <user>\n"
+        msg += "\t<user>: name of the user\n"
         msg += "```"
         return msg
 
@@ -408,13 +422,15 @@ class DiscordCommand:
         msg1 = [
             f"**User:** {user.short_name()}\n",
             "```",
-            "{:14s}: {:9.2f}".format("Bank", user.account().amount),
-            "{:14s}: {:9.2f}".format("Shares Value", user.shares_value()),
-            25*"-",
-            "{:14s}: {:9.2f}".format("Balance", user.balance()),
-            "{:14s}: {:9.2f}".format("Week Gain", user.current_gain()),
-            "{:14s}: {:9d}".format("Points", user.points()),
-            25*"-",
+            "{:19s}: {:9.2f}".format("Bank", user.account().amount),
+            "{:19s}: {:9.2f}".format("Shares Value", user.shares_value()),
+            30*"-",
+            "{:19s}: {:9.2f}".format("Balance", user.balance()),
+            "{:19s}: {:9.2f}".format("This Week Gain", user.current_gain()),
+            "{:19s}: {:9.2f}".format("Last Week Gain", user.week_gain(app.config['ROUNDS_EXPORT'][-1]-1)),
+            "{:19s}: {:>9}".format("Last Week Position", user.position(app.config['SEASON'],app.config['ROUNDS_EXPORT'][-1]-1)),
+            "{:19s}: {:9d}".format("Points", user.points()),
+            30*"-",
         ]
         for record in user.point_card().records:
             msg1.append("{:2d} points - {}".format(record.amount, record.reason))
@@ -514,7 +530,23 @@ class DiscordCommand:
         balance_graph(users)
         fl = discord.File("tmp/balance.png", filename="balance.png")
         await self.message.channel.send(file=fl)
-        
+    
+    async def __run_rank(self):
+        # require username argument
+        if len(self.args) == 1:
+            await self.reply(["User is missing"])
+            return
+        users = User.find_all_by_name(self.args[1])
+
+        if not users:
+            msg=["No users found"]
+            await self.reply(msg)
+            return
+        msg = ["__Rankings:__"]
+        for pos in users[0].positions:
+            msg.append(f"Week {pos.week} - Position {pos.position} - Gain {users[0].week_gain(pos.week):0.2f}")
+        await self.reply(msg)
+
     async def __run_list(self):
 
         user = User.get_by_discord_id(self.message.author.id)
@@ -985,12 +1017,12 @@ class DiscordCommand:
             await self.reply([f"**{self.args[1]}** must be whole positive number and be less or equal 50!"])
             return
         
-        sorted_users = UserService.order_by_balance(self.args[1])
+        sorted_users = UserService.order_by_balance(int(self.args[1]))
 
         msg = ["```asciidoc"]
         msg.append(" = Place = | = Balance = | = Investor =")
-        for position, tup in enumerate(sorted_users, 1):
-            msg.append("{:3d}.       |{:12.2f} | {:s}".format(position, tup[0],tup[1].short_name()))
+        for i, (position,value, user) in enumerate(sorted_users):
+            msg.append("{:3d}.       |{:12.2f} | {:s}".format(position, value,user.short_name()))
         msg.append("```")
 
         await self.reply(msg)
@@ -1006,12 +1038,12 @@ class DiscordCommand:
             await self.reply([f"**{self.args[1]}** must be whole positive number and be less or equal 50!"])
             return
         
-        sorted_users = UserService.order_by_balance(self.args[1],False)
+        sorted_users = UserService.order_by_balance(int(self.args[1]),False)
 
         msg = ["```asciidoc"]
         msg.append(" = Place = | = Balance = | = Investor =")
-        for position, tup in enumerate(sorted_users, 1):
-            msg.append("{:3d}.       |{:12.2f} | {:s}".format(position, tup[0],tup[1].short_name()))
+        for i, (position,value, user) in enumerate(sorted_users):
+            msg.append("{:3d}.       |{:12.2f} | {:s}".format(position, value,user.short_name()))
         msg.append("```")
 
         await self.reply(msg)
@@ -1027,12 +1059,12 @@ class DiscordCommand:
             await self.reply([f"**{self.args[1]}** must be whole positive number and be less or equal 50!"])
             return
         
-        sorted_users = UserService.order_by_points(self.args[1])
+        sorted_users = UserService.order_by_points(int(self.args[1]))
 
         msg = ["```asciidoc"]
         msg.append(" = Place = | = Points = | = Investor =")
-        for position, tup in enumerate(sorted_users, 1):
-            msg.append("{:3d}.       |{:11d} | {:s}".format(position, tup[0],tup[1].short_name()))
+        for i, (position,value, user) in enumerate(sorted_users):
+            msg.append("{:3d}.       |{:11d} | {:s}".format(position, value,user.short_name()))
         msg.append("```")
 
         await self.reply(msg)
@@ -1048,12 +1080,12 @@ class DiscordCommand:
             await self.reply([f"**{self.args[1]}** must be whole positive number and be less or equal 50!"])
             return
         
-        sorted_users = UserService.order_by_current_gain(self.args[1])
+        sorted_users = UserService.order_by_current_gain(int(self.args[1]))
 
         msg = ["```asciidoc"]
         msg.append(" = Place = | = Gain = | = Investor =")
-        for position, tup in enumerate(sorted_users, 1):
-            msg.append("{:3d}.       |{:9.2f} | {:s}".format(position, tup[0],tup[1].short_name()))
+        for i, (position,value, user) in enumerate(sorted_users):
+            msg.append("{:3d}.       |{:9.2f} | {:s}".format(position, value,user.short_name()))
         msg.append("```")
 
         await self.reply(msg)
