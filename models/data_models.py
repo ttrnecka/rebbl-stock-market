@@ -1,5 +1,6 @@
 from sqlalchemy import or_, UniqueConstraint, desc
 from .base_model import db, Base, QueryWithSoftDelete
+from misc.helpers import current_round
 import logging
 import json
 import datetime
@@ -70,7 +71,7 @@ class User(Base):
 
     def current_gain(self):
         app = db.get_app()
-        return self.account().amount - self.account().snapshot_for_week(app.config['ROUNDS_EXPORT'][-1]-1).amount
+        return self.account().amount - self.account().snapshot_for_week(current_round()-1).amount
     
     def week_gain(self,week):
         snapshots = AccountSnapshot.query.join(Account.snapshots) \
@@ -151,7 +152,7 @@ class User(Base):
         app = db.get_app()
         pos = Position()
         pos.position = position
-        pos.week = app.config['ROUNDS_EXPORT'][-1]
+        pos.week = current_round()
         pos.season = app.config['SEASON']
         self.positions.append(pos)
 
@@ -368,7 +369,7 @@ class Account(Base):
         app = db.get_app()
         self.season = app.config['SEASON']
         self.amount = self.INIT_CASH
-        self.make_snapshot(app.config['ROUNDS_EXPORT'][-1]-1)
+        self.make_snapshot(current_round()-1)
 
     def __repr__(self):
         return '<Account %r>' % self.amount

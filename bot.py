@@ -13,7 +13,7 @@ from web import db, app
 
 from services import SheetService, StockService, UserService, OrderService, OrderError, MatchService, balance_graph
 from models.data_models import Stock, User, Order, Share, Transaction, TransactionError
-from misc.helpers import represents_int, is_number
+from misc.helpers import represents_int, is_number, current_round
 
 ROOT = os.path.dirname(__file__)
 logger = logging.getLogger('discord')
@@ -427,8 +427,8 @@ class DiscordCommand:
             30*"-",
             "{:19s}: {:9.2f}".format("Balance", user.balance()),
             "{:19s}: {:9.2f}".format("This Week Gain", user.current_gain()),
-            "{:19s}: {:9.2f}".format("Last Week Gain", user.week_gain(app.config['ROUNDS_EXPORT'][-1]-1)),
-            "{:19s}: {:>9}".format("Last Week Position", user.position(app.config['SEASON'],app.config['ROUNDS_EXPORT'][-1]-1)),
+            "{:19s}: {:9.2f}".format("Last Week Gain", user.week_gain(current_round()-1)),
+            "{:19s}: {:>9}".format("Last Week Position", user.position(app.config['SEASON'],current_round()-1)),
             "{:19s}: {:9d}".format("Points", user.points()),
             30*"-",
         ]
@@ -442,7 +442,7 @@ class DiscordCommand:
     
         msg2 = []
         if user.shares:
-            round_n = app.config['ROUNDS_EXPORT'][-1]
+            round_n = current_round()
             for share in user.shares:
                 gain = round(share.stock.unit_price_change, 2)
                 match = MatchService.get_game(share.stock.name, round_n=round_n)
@@ -799,7 +799,7 @@ class DiscordCommand:
                     '{:5s} - {:25} {:<8s} {:>7s}{:>9s}{:>8s}{:>11s}'.format("Code","Team Name","Division","Price",change_desc, "Shares", "Net Worth")
                 )
                 msg.append(78*"-")
-                round_n = app.config['ROUNDS_EXPORT'][-1]
+                round_n = current_round()
                 for stock in stocks[0:limit]:
                     match = MatchService.get_game(stock.name, round_n=round_n)
                     played = "Y" if match and match.match_uuid else "N"
@@ -879,7 +879,7 @@ class DiscordCommand:
         order_dict = {
             'operation':"buy",
             'season': app.config['SEASON'],
-            'week': app.config['ROUNDS_EXPORT'][-1]
+            'week': current_round()
         }
 
         if user is None:
@@ -929,7 +929,7 @@ class DiscordCommand:
         order_dict = {
             'operation':"sell",
             'season': app.config['SEASON'],
-            'week': app.config['ROUNDS_EXPORT'][-1]
+            'week': current_round()
         }
 
         if user is None:

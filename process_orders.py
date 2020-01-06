@@ -5,6 +5,7 @@ from sqlalchemy import asc
 from web import db, app
 from services import AdminNotificationService, OrderService, OrderNotificationService, StockService, UserService
 from models import Order, User
+from misc.helpers import current_round
 
 
 app.app_context().push()
@@ -88,12 +89,12 @@ def main(argv):
         if app.config['ALLOW_TRACKING']:
             AdminNotificationService.notify("Recording gains...")
             for user in User.query.all():
-                user.account().make_snapshot(app.config['ROUNDS_EXPORT'][-1])
+                user.account().make_snapshot(current_round())
             db.session.commit()
             AdminNotificationService.notify("Done")
 
             AdminNotificationService.notify("Recording positions...")
-            sorted_users = UserService.week_gain(app.config['ROUNDS_EXPORT'][-1], User.query.count())
+            sorted_users = UserService.week_gain(current_round(), User.query.count())
             for i, (position, value, user) in enumerate(sorted_users):
                 user.record_position(position)
             db.session.commit()
@@ -103,8 +104,8 @@ def main(argv):
             for i, (position, value, user) in enumerate(sorted_users):
                 if position > 25:
                     break
-                user.award_points(POINTS[position], f"Top {position} gain in week {app.config['ROUNDS_EXPORT'][-1]}")
-                OrderNotificationService.notify(f"{user.mention()}: Awarded {POINTS[position]} points for top {position} gain ({round(value,2)}) in week {app.config['ROUNDS_EXPORT'][-1]}")
+                user.award_points(POINTS[position], f"Top {position} gain in week {current_round()}")
+                OrderNotificationService.notify(f"{user.mention()}: Awarded {POINTS[position]} points for top {position} gain ({round(value,2)}) in week {current_round()}")
             db.session.commit()
             AdminNotificationService.notify("Done")
         else:

@@ -1,8 +1,6 @@
 """Various helpers"""
-from flask import session
-from sqlalchemy.orm import raiseload
+from models.base_model import db
 
-from models.data_models import User
 
 
 def represents_int(string):
@@ -47,3 +45,9 @@ def leaderboard(sorted_tuple_list,max_position=1):
         last_position = position
 
     return new_list
+
+def current_round():
+    app = db.get_app()
+    if app.config['ROUNDS_EXPORT']:
+        return app.config['ROUNDS_EXPORT'][-1]
+    return 1
