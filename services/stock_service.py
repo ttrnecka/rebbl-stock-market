@@ -25,6 +25,7 @@ class StockService:
                 change = 0
                 db.session.add(db_stock)
             else:
+                print(stock['Current Value'])
                 if round(db_stock.unit_price,2) == round(Decimal(stock['Current Value']),2):
                     change = db_stock.unit_price_change
                     new_history = False
