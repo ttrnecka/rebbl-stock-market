@@ -368,7 +368,7 @@ class Account(Base):
     def __init__(self):
         app = db.get_app()
         self.season = app.config['SEASON']
-        self.amount = self.INIT_CASH
+        self.amount = Decimal(self.INIT_CASH)
         self.make_snapshot(current_round()-1)
 
     def __repr__(self):
