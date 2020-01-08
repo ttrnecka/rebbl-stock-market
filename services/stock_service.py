@@ -19,6 +19,7 @@ class StockService:
             st = stock['Team(Sorted A-Z)']
             db_stock = Stock.query.filter_by(name=st).one_or_none()
             new_history = True
+            print(stock['Current Value'])
             if not db_stock:
                 db_stock = Stock()
                 db_stock.unit_price = Decimal(stock['Current Value'])
