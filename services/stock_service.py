@@ -14,7 +14,7 @@ class StockService:
         getcontext().prec = 14
         stocks = SheetService.stocks(refresh=True)
         for stock in stocks:
-            if not stock['Team(Sorted A-Z)'] or not stock['Current Value']:
+            if not stock['Team(Sorted A-Z)'] or stock['Current Value']=="#DIV/0!":
                 continue
             st = stock['Team(Sorted A-Z)']
             db_stock = Stock.query.filter_by(name=st).one_or_none()
@@ -25,7 +25,6 @@ class StockService:
                 change = 0
                 db.session.add(db_stock)
             else:
-                print(stock['Current Value'])
                 if round(db_stock.unit_price,2) == round(Decimal(stock['Current Value']),2):
                     change = db_stock.unit_price_change
                     new_history = False
