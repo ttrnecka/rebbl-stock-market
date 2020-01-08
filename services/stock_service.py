@@ -14,7 +14,7 @@ class StockService:
         getcontext().prec = 14
         stocks = SheetService.stocks(refresh=True)
         for stock in stocks:
-            if not stock['Team(Sorted A-Z)']:
+            if not stock['Team(Sorted A-Z)'] or not stock['Current Value']:
                 continue
             st = stock['Team(Sorted A-Z)']
             db_stock = Stock.query.filter_by(name=st).one_or_none()
