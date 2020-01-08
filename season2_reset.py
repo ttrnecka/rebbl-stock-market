@@ -1,9 +1,11 @@
 """resets coaches and tournaments in DB"""
 from sqlalchemy.orm.attributes import flag_modified
 from web import db, app
-from models.data_models import User, Account, AccountSnapshot
+from models.data_models import User, Account, AccountSnapshot, Match
 
 app.app_context().push()
+
+Match.query.delete()
 
 for user in User.query.all():
     user.deleted = True
