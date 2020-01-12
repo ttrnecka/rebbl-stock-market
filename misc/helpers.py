@@ -33,7 +33,7 @@ def leaderboard(sorted_tuple_list,max_position=1):
     last_position = None
     new_list = []
     for i, (value, *rest) in enumerate(sorted_tuple_list):
-        if last_value and value == last_value:
+        if last_value != None and value == last_value:
             position = last_position
         else:
             position = i + 1
