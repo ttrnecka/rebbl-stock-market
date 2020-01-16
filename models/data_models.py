@@ -71,7 +71,7 @@ class User(Base):
 
     def current_gain(self):
         app = db.get_app()
-        return self.account().amount - self.account().snapshot_for_week(current_round()-1).amount
+        return self.balance() - self.account().snapshot_for_week(current_round()-1).amount
     
     def week_gain(self,week):
         snapshots = AccountSnapshot.query.join(Account.snapshots) \
@@ -379,7 +379,7 @@ class Account(Base):
 
     def make_snapshot(self,week):
         snap = self.snapshot_for_week(week)
-        snap.amount = self.amount
+        snap.amount = self.account.user.balance()
         snap.week = week
         self.snapshots.append(snap)
 
