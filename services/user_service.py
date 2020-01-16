@@ -17,15 +17,15 @@ class UserService:
 
     @staticmethod
     def order_by_points(limit=10,reversed=True):
-        return UserService.__order("points",limit)
+        return UserService.__order("points",limitlimit=limit,reversed=reversed)
     
     @staticmethod
     def order_by_balance(limit=10,reversed=True):
-        return UserService.__order("balance",limit)
+        return UserService.__order("balance",limit=limit,reversed=reversed)
 
     @staticmethod
     def order_by_current_gain(limit=10,reversed=True):
-        return UserService.__order("current_gain",limit)
+        return UserService.__order("current_gain",limit=limit,reversed=reversed)
 
     @staticmethod
     def __order(method,limit=10,reversed=False):
