@@ -17,7 +17,7 @@ class StockService:
             if not stock['Team(Sorted A-Z)'] or stock['Current Value']=="#DIV/0!":
                 continue
             st = stock['Team(Sorted A-Z)']
-            db_stock = Stock.query.filter_by(name=st).one_or_none()
+            db_stock = Stock.query.with_deleted().filter_by(name=st).one_or_none()
             new_history = True
             if not db_stock:
                 db_stock = Stock()
