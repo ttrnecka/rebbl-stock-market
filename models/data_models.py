@@ -379,7 +379,7 @@ class Account(Base):
 
     def make_snapshot(self,week):
         snap = self.snapshot_for_week(week)
-        snap.amount = self.account.user.balance()
+        snap.amount = self.user.balance()
         snap.week = week
         self.snapshots.append(snap)
 
