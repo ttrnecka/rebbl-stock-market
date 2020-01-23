@@ -39,6 +39,7 @@ class StockService:
                 'race':stock['Race'],
                 'coach':stock['Coach'],
                 'division': f"{stock['Region']}{cls.division_replace_regexp.sub('', stock['Division'])}",
+                'deleted': False
             }
             db_stock.update(**stock_dict)
 

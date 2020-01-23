@@ -218,6 +218,10 @@ class Stock(Base):
     unit_price_change = db.Column(db.Numeric(14,7), nullable=False, default = 0.0)
     orders = db.relationship('Order', backref=db.backref('stock', lazy=False), cascade="save-update",lazy=True)
 
+    deleted = db.Column(db.Boolean(), default=False)
+
+    query_class = QueryWithSoftDelete
+
     def last_history(self):
         last_history = None if len(self.histories) == 0 else self.histories[-1]
         return last_history
